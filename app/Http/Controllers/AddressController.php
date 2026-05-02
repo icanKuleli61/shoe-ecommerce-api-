@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AddressService;
 use App\Http\Requests\StoreAddressRequest;
 use App\Http\Resources\AddressResource;
+use App\Http\Requests\UpdateAddressRequest;
 
 class AddressController extends Controller
 {
@@ -31,7 +32,6 @@ class AddressController extends Controller
         ]);
     }
 
-    // 🔥 GET /addresses
     public function index()
     {
         $user_id = 1;
@@ -43,4 +43,34 @@ class AddressController extends Controller
             'data' => AddressResource::collection($addresses)
         ]);
     }
+
+    public function update(UpdateAddressRequest $request, $id)
+    {
+        $user_id = 1; // şimdilik sabit
+
+        $address = $this->service->update(
+            $user_id,
+            $id,
+            $request->validated()
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => new AddressResource($address)
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $user_id = 1;
+
+        $this->service->delete($user_id, $id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Adres silindi'
+        ]);
+    }
+
+    
 }
