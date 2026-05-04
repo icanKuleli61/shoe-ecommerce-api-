@@ -18,4 +18,14 @@ class VariantSize extends Model
         return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class, 'size_id');
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(\App\Models\OrderItem::class, 'size_id');
+    }
+
 }
