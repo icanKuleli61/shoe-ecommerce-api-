@@ -9,6 +9,8 @@ use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\ProductImageController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\FavoriteController;
 
 Route::prefix('locations')->group(function () {
 
@@ -49,6 +51,8 @@ Route::prefix('products')->group(function () {
     // 🔥 variant
     Route::post('/variants', [ProductVariantController::class, 'store']);
     Route::delete('/variants/{id}', [ProductVariantController::class, 'destroy']);
+
+    Route::get('{productId}/reviews', [ReviewController::class, 'index']);
 });
 
 
@@ -78,4 +82,8 @@ Route::prefix('orders')->group(function () {
     Route::post('/{id}/pay', [OrderController::class, 'pay']);
 
 });
+
+Route::post('/reviews', [ReviewController::class, 'store']);
+
+Route::get('/favorites', [FavoriteController::class, 'index']);
 

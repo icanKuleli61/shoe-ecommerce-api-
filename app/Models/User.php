@@ -55,4 +55,16 @@ class User extends Authenticatable
     public function orders(){
         return $this->hasMany(\App\Models\Order::class);
     }
+
+    public function reviews(){
+        return $this->hasMany(\App\Models\Review::class);
+    }
+
+
+    public function favorites()
+    {
+        return $this->hasMany(\App\Models\Favorite::class);
+    }
+
+    
 }
