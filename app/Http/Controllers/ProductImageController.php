@@ -25,7 +25,7 @@ class ProductImageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ProductImageResource($image);
+            'data' => new ProductImageResource($image)
         ]);
     }
 

@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\ProductController;
@@ -11,6 +13,53 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\UserController;
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| AUTH
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::post('/register', [AuthController::class, 'register']);
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC PRODUCT ROUTES
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('products')->group(function () {
+
+    Route::get('/', [ProductController::class, 'index']);
+
+    Route::get('/filter', [ProductController::class, 'filter']);
+
+    Route::get('/{slug}', [ProductController::class, 'show']);
+
+    Route::get('{productId}/reviews', [ReviewController::class, 'index']);
+
+    Route::get('/{productId}/statistics', [ReviewController::class, 'statistics']);
+});
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC LOCATION ROUTES
+|--------------------------------------------------------------------------
+*/
 
 Route::prefix('locations')->group(function () {
 
@@ -24,66 +73,208 @@ Route::prefix('locations')->group(function () {
 });
 
 
-Route::prefix('addresses')->group(function () {
 
-    Route::post('/', [AddressController::class, 'store']);
-    Route::get('/', [AddressController::class, 'index']);
-    Route::put('/{id}', [AddressController::class, 'update']);
-    Route::delete('/{id}', [AddressController::class, 'destroy']); // ✅ düzeltildi
+
+
+/*
+|--------------------------------------------------------------------------
+| PROTECTED ROUTES
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:api')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | ME
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/me', function () {
+
+        return response()->json([
+            'user' => auth()->user()
+        ]);
+    });
+
+
+
+
+    Route::get('/profile', [UserController::class, 'profile']);
+
+    Route::put('/profile', [UserController::class, 'update']);
+
+    Route::put('/change-password', [UserController::class, 'changePassword']);
+
+
+    Route::post(
+        '/verify-password',
+        [UserController::class, 'verifyPassword']
+    );
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADDRESS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('addresses')->group(function () {
+
+        Route::post('/', [AddressController::class, 'store']);
+
+        Route::get('/', [AddressController::class, 'index']);
+
+        Route::put('/{id}', [AddressController::class, 'update']);
+
+        Route::delete('/{id}', [AddressController::class, 'destroy']);
+
+        Route::patch(
+            '/{id}/default',
+            [AddressController::class, 'makeDefault']
+        );
+    });
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FAVORITES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/favorites', [FavoriteController::class, 'index']);
+
+    Route::post('/favorites/{productId}', [FavoriteController::class, 'toggle']);
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | REVIEWS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/reviews', [ReviewController::class, 'store']);
+
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CART
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('cart')->group(function () {
+
+        Route::get('/', [CartController::class, 'index']);
+
+        Route::post('/add', [CartController::class, 'add']);
+
+        Route::patch('/{id}', [CartController::class, 'update']);
+
+        Route::delete('/{id}', [CartController::class, 'destroy']);
+
+        Route::delete('/', [CartController::class, 'clear']);
+    });
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ORDERS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('orders')->group(function () {
+
+        Route::post('/', [OrderController::class, 'store']);
+
+        Route::post('/{id}/pay', [OrderController::class, 'pay']);
+    });
+
 });
 
 
-Route::prefix('products')->group(function () {
 
-    // 🔥 product
-    Route::post('/', [ProductController::class, 'store']);
-    Route::get('/', [ProductController::class, 'index']);
-    Route::get('/{slug}', [ProductController::class, 'show']);
-    Route::patch('/{id}', [ProductController::class, 'update']);
-    Route::delete('/{id}', [ProductController::class, 'destroy']);
-    Route::patch('/{id}/restore', [ProductController::class, 'restore']);
 
-    // 🔥 size
-    Route::patch('/sizes/{id}', [VariantSizeController::class, 'update']);
-    Route::post('/sizes', [VariantSizeController::class, 'store']);
-    Route::delete('/sizes/{id}', [VariantSizeController::class, 'destroy']);
 
-    // 🔥 variant
+/*
+|--------------------------------------------------------------------------
+| ADMIN ROUTES
+|--------------------------------------------------------------------------
+|
+| Şimdilik auth var.
+| Sonra admin middleware ekleyeceğiz.
+|
+*/
+
+Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCTS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/products', [ProductController::class, 'store']);
+
+    Route::patch('/products/{id}', [ProductController::class, 'update']);
+
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+
+    Route::patch('/products/{id}/restore', [ProductController::class, 'restore']);
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VARIANTS
+    |--------------------------------------------------------------------------
+    */
+
     Route::post('/variants', [ProductVariantController::class, 'store']);
+
     Route::delete('/variants/{id}', [ProductVariantController::class, 'destroy']);
 
-    Route::get('{productId}/reviews', [ReviewController::class, 'index']);
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIZES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/sizes', [VariantSizeController::class, 'store']);
+
+    Route::patch('/sizes/{id}', [VariantSizeController::class, 'update']);
+
+    Route::delete('/sizes/{id}', [VariantSizeController::class, 'destroy']);
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/images', [ProductImageController::class, 'store']);
 });
-
-
-Route::prefix('images')->group(function () {
-
-    Route::post('/', [ProductImageController::class, 'store']);
-
-});
-
-Route::prefix('cart')->group(function () {
-
-    Route::get('/', [CartController::class, 'index']);       
-
-    Route::post('/add', [CartController::class, 'add']);     
-
-    Route::patch('/{id}', [CartController::class, 'update']); 
-
-    Route::delete('/{id}', [CartController::class, 'destroy']); 
-
-    Route::delete('/', [CartController::class, 'clear']);    
-
-});
-
-Route::prefix('orders')->group(function () {
-
-    Route::post('/', [OrderController::class, 'store']);
-    Route::post('/{id}/pay', [OrderController::class, 'pay']);
-
-});
-
-Route::post('/reviews', [ReviewController::class, 'store']);
-
-Route::get('/favorites', [FavoriteController::class, 'index']);
-

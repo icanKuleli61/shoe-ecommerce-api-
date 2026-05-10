@@ -12,12 +12,10 @@ class AddressService
     {
         $hasAnyAddress = Address::where('user_id', $user_id)->exists();
 
-        // 🔥 ilk adres ise otomatik default
         if (!$hasAnyAddress) {
             $data['is_default'] = true;
         }
 
-        // 🔥 kullanıcı özellikle default yaptıysa
         if (($data['is_default'] ?? false) === true) {
             Address::where('user_id', $user_id)
                 ->update(['is_default' => false]);
@@ -31,15 +29,14 @@ class AddressService
 
     public function index($user_id)
     {
-        return Address::with(['city','district','neighborhood'])
+        return Address::with(['city', 'district', 'neighborhood'])
             ->where('user_id', $user_id)
-            ->orderByDesc('is_default') 
+            ->orderByDesc('is_default')
             ->get();
     }
 
     public function update($user_id, $address_id, $data)
     {
-        // 🔥 adres var mı + kullanıcıya ait mi
         $address = Address::where('id', $address_id)
             ->where('user_id', $user_id)
             ->first();
@@ -50,7 +47,7 @@ class AddressService
 
         $address->fill($data);
 
-        if(!$address->isDirty()){
+        if (!$address->isDirty()) {
             throw new BaseException(ErrorCode::NO_CHANGES_DETECTED);
         }
 
@@ -65,18 +62,99 @@ class AddressService
 
     public function delete($user_id, $address_id)
     {
-        // 🔥 adres var mı + kullanıcıya ait mi
         $address = Address::where('id', $address_id)
             ->where('user_id', $user_id)
             ->first();
 
+
+
         if (!$address) {
-            throw new BaseException(ErrorCode::ADDRESS_NOT_FOUND);
+
+            throw new BaseException(
+                ErrorCode::ADDRESS_NOT_FOUND
+            );
         }
 
-        // 🔥 sil
+
+
+        $totalAddress = Address::where(
+            'user_id',
+            $user_id
+        )->count();
+
+
+
+        if ($totalAddress <= 1) {
+
+            throw new BaseException(
+                ErrorCode::LAST_ADDRESS_CANNOT_DELETE
+            );
+        }
+
+
+
+        $wasDefault = $address->is_default;
+
+
+
         $address->delete();
 
+
+
+        if ($wasDefault) {
+
+            $newDefault = Address::where(
+                'user_id',
+                $user_id
+            )->first();
+
+
+
+            if ($newDefault) {
+
+                $newDefault->update([
+                    'is_default' => true
+                ]);
+            }
+        }
+
+
+
         return true;
+    }
+
+    public function makeDefault(
+        $user_id,
+        $address_id
+    ) {
+        $address = Address::where(
+            'id',
+            $address_id
+        )
+            ->where(
+                'user_id',
+                $user_id
+            )
+            ->first();
+
+        if (!$address) {
+
+            throw new BaseException(
+                ErrorCode::ADDRESS_NOT_FOUND
+            );
+        }
+
+        Address::where(
+            'user_id',
+            $user_id
+        )->update([
+                    'is_default' => false
+                ]);
+
+        $address->update([
+            'is_default' => true
+        ]);
+
+        return $address;
     }
 }

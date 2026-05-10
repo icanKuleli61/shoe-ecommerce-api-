@@ -3,25 +3,32 @@
 namespace App\Services;
 
 use App\Models\Favorite;
+use App\Models\Product;
 use App\Exceptions\BaseException;
 use App\Enums\ErrorCode;
 
 class FavoriteService
 {
-    public function toggle($productId)
+    public function toggle($productId): bool
     {
         $userId = $this->getUserId();
 
         $favorite = $this->findFavorite($userId, $productId);
 
         if ($favorite) {
-            return $this->remove($favorite);
+            $favorite->delete();
+            return false; 
         }
 
-        return $this->add($userId, $productId);
+        Favorite::create([
+            'user_id' => $userId,
+            'product_id' => $productId,
+        ]);
+
+        return true; 
     }
 
-    private function getUserId()
+    private function getUserId(): int
     {
         $userId = auth()->id();
 
@@ -32,31 +39,16 @@ class FavoriteService
         return $userId;
     }
 
-    private function findFavorite($userId, $productId)
+    private function findFavorite($userId, $productId): ?Favorite
     {
         return Favorite::where('user_id', $userId)
             ->where('product_id', $productId)
             ->first();
     }
 
-    private function add($userId, $productId)
-    {
-        return Favorite::create([
-            'user_id' => $userId,
-            'product_id' => $productId,
-        ]);
-    }
-
-    private function remove($favorite)
-    {
-        $favorite->delete();
-
-        return true;
-    }
-
     public function getUserFavorites()
     {
-        return \App\Models\Product::withAvg('reviews', 'rating')
+        return Product::withAvg('reviews', 'rating')
             ->withCount('reviews')
             ->whereHas('favorites', function ($q) {
                 $q->where('user_id', auth()->id());

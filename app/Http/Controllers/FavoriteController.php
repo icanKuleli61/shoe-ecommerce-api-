@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\FavoriteService;
+use App\Http\Resources\ProductListResource;
 
 class FavoriteController extends Controller
 {
@@ -29,7 +30,7 @@ class FavoriteController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ProductResource::collection($products)
+            'data' => ProductListResource::collection($products)
         ]);
     }
 }

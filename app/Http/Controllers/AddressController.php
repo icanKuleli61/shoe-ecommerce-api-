@@ -19,7 +19,7 @@ class AddressController extends Controller
     // 🔥 POST /addresses
     public function store(StoreAddressRequest $request)
     {
-        $user_id = 1; // şimdilik sabit (auth yok)
+        $user_id = auth()->id();
 
         $address = $this->service->store(
             $user_id,
@@ -34,7 +34,7 @@ class AddressController extends Controller
 
     public function index()
     {
-        $user_id = 1;
+        $user_id = auth()->id();
 
         $addresses = $this->service->index($user_id);
 
@@ -46,7 +46,7 @@ class AddressController extends Controller
 
     public function update(UpdateAddressRequest $request, $id)
     {
-        $user_id = 1; // şimdilik sabit
+        $user_id = auth()->id();
 
         $address = $this->service->update(
             $user_id,
@@ -62,7 +62,7 @@ class AddressController extends Controller
 
     public function destroy($id)
     {
-        $user_id = 1;
+        $user_id = auth()->id();
 
         $this->service->delete($user_id, $id);
 
@@ -72,5 +72,26 @@ class AddressController extends Controller
         ]);
     }
 
-    
+    public function makeDefault($id)
+    {
+        $user_id = auth()->id();
+
+        $address = $this->service->makeDefault(
+            $user_id,
+            $id
+        );
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Varsayılan adres güncellendi',
+
+            'data' =>
+                new AddressResource($address)
+        ]);
+    }
+
+
 }

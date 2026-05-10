@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ReviewResource;
 use Illuminate\Http\Request;
 use App\Services\ReviewService;
+use App\Http\Resources\ReviewStatisticsResource;
 
 class ReviewController extends Controller
 {
@@ -33,6 +34,19 @@ class ReviewController extends Controller
         return response()->json([
             'success' => true,
             'data' => ReviewResource::collection($reviews)
+        ]);
+    }
+
+    public function statistics($productId)
+    {
+        $statistics = $this->service
+            ->getStatistics($productId);
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' =>  new ReviewStatisticsResource($statistics)
         ]);
     }
 }

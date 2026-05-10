@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Services\AuthService;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
+
+class AuthController extends Controller
+{
+    protected AuthService $service;
+
+    public function __construct(AuthService $service)
+    {
+        $this->service = $service;
+    }
+
+    public function login(LoginRequest $request)
+    {
+        $token = $this->service->login(
+            $request->validated()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Giriş başarılı.',
+            'token' => $token
+        ]);
+    }
+
+    public function register(RegisterRequest $request)
+    {
+        $token = $this->service->register(
+            $request->validated()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kayıt başarıyla oluşturuldu.',
+            'token' => $token
+        ]);
+    }
+
+
+
+}

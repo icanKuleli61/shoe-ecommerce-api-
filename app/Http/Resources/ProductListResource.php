@@ -23,7 +23,13 @@ class ProductListResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'price' => $minPrice,
-            'image' => $this->images->first()?->image_path
+            'image' => $this->images->first()?->image_path,
+
+            'is_favorite' => auth()->check()
+                ? $this->favorites()
+                    ->where('user_id', auth()->id())
+                    ->exists()
+                : false,
         ];
     }
 }

@@ -7,8 +7,10 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Tymon\JWTAuth\Contracts\JWTSubject;
+use App\Models\Address;
 
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -19,11 +21,19 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
 
+        'first_name',
+        'last_name',
+
+        'email',
+
+        'gender',
+
+        'phone',
+
+        'password',
+
+    ];
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -52,11 +62,13 @@ class User extends Authenticatable
         return $this->hasMany(CartItem::class);
     }
 
-    public function orders(){
+    public function orders()
+    {
         return $this->hasMany(\App\Models\Order::class);
     }
 
-    public function reviews(){
+    public function reviews()
+    {
         return $this->hasMany(\App\Models\Review::class);
     }
 
@@ -66,5 +78,20 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Favorite::class);
     }
 
-    
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+
+    public function addresses()
+    {
+        return $this->hasMany(Address::class);
+    }
+
+
 }

@@ -9,6 +9,7 @@ use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductListResource;
 use App\Http\Resources\ProductDetailResource;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Requests\FilterProductRequest;
 
 
 
@@ -84,6 +85,18 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'data' => new ProductResource($product)
+        ]);
+    }
+
+    public function filter(FilterProductRequest $request)
+    {
+        $products = $this->service->filter(
+            $request->validated()
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => ProductListResource::collection($products)
         ]);
     }
 

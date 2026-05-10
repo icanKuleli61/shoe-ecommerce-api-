@@ -3,8 +3,8 @@
 namespace App\Exceptions;
 
 use Throwable;
-use Illuminate\Validation\ValidationException;
 use App\Enums\ErrorCode;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 
 class Handler extends ExceptionHandler
@@ -12,14 +12,26 @@ class Handler extends ExceptionHandler
     public function render($request, Throwable $e)
     {
         if ($e instanceof ValidationException) {
+
             return response()->json([
+
                 'success' => false,
+
                 'error' => [
-                    'code' => ErrorCode::VALIDATION_ERROR->value,
-                    'message' => ErrorCode::VALIDATION_ERROR->message(),
-                    'fields' => $e->errors()
+
+                    'code' =>
+                        ErrorCode::VALIDATION_ERROR->value,
+
+                    'message' =>
+                        collect($e->errors())
+                            ->flatten()
+                            ->first(),
+
+                    'fields' =>
+                        $e->errors()
                 ]
-            ], ErrorCode::VALIDATION_ERROR->status());
+
+            ], 422);
         }
 
         return parent::render($request, $e);
