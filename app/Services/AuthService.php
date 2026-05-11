@@ -22,8 +22,13 @@ class AuthService
 
         $this->checkPassword($data['password'], $user->password);
 
-        return $this->generateToken($user);
+        return [
 
+            'token' =>
+                $this->generateToken($user),
+
+            'user' => $user
+        ];
     }
 
     public function register(array $data)

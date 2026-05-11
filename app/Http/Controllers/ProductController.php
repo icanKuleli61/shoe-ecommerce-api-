@@ -17,12 +17,13 @@ class ProductController extends Controller
 {
     protected ProductService $service;
 
-    public function __construct(ProductService $service){
+    public function __construct(ProductService $service)
+    {
         $this->service = $service;
     }
 
 
-     public function store(StoreProductRequest $request)
+    public function store(StoreProductRequest $request)
     {
         $product = $this->service->store(
             $request->validated()
@@ -55,16 +56,19 @@ class ProductController extends Controller
         ]);
     }
 
-    public function update(UpdateProductRequest $request, $id){
+    public function update(UpdateProductRequest $request, $id)
+    {
 
 
-        $product = $this->service->update($id, $request->validated()
+        $product = $this->service->update(
+            $id,
+            $request->validated()
         );
 
         return response()->json([
 
-             'success' => true,
-             'data' => new ProductResource($product)
+            'success' => true,
+            'data' => new ProductResource($product)
         ]);
     }
 
@@ -88,17 +92,16 @@ class ProductController extends Controller
         ]);
     }
 
-    public function filter(FilterProductRequest $request)
-    {
+    public function filter(
+        FilterProductRequest $request
+    ) {
+
         $products = $this->service->filter(
             $request->validated()
         );
 
-        return response()->json([
-            'success' => true,
-            'data' => ProductListResource::collection($products)
-        ]);
+        return ProductListResource::collection(
+            $products
+        );
     }
-
-    
 }

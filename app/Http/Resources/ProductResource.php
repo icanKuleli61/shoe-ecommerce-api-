@@ -12,7 +12,7 @@ class ProductResource extends JsonResource
      *
      * @return array<string, mixed>
      */
-   public function toArray($request) : array
+    public function toArray($request): array
     {
         return [
             'id' => $this->id,
@@ -31,7 +31,13 @@ class ProductResource extends JsonResource
                             'stock' => $size->stock,
                             'price' => $size->price,
                         ];
-                    })
+                    }),
+                    'images' => ProductImageResource::collection(
+                        $variant->images
+                    ),
+                    
+
+
                 ];
             })
         ];

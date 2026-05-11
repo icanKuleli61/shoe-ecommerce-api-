@@ -116,7 +116,8 @@ class OrderService
             throw new BaseException(ErrorCode::UNAUTHORIZED);
         }
 
-        return Order::where('user_id', $userId)
+        return Order::withCount('items')
+            ->where('user_id', $userId)
             ->latest()
             ->get();
     }

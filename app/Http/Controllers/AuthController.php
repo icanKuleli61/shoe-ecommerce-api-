@@ -18,17 +18,22 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request)
     {
-        $token = $this->service->login(
+        $data = $this->service->login(
             $request->validated()
         );
 
         return response()->json([
+
             'success' => true,
+
             'message' => 'Giriş başarılı.',
-            'token' => $token
+
+            'token' => $data['token'],
+
+            'user' => $data['user']
         ]);
     }
-
+    
     public function register(RegisterRequest $request)
     {
         $token = $this->service->register(

@@ -6,9 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductVariant extends Model
 {
-     protected $fillable = [
+    protected $fillable = [
+
         'product_id',
-        'color_id'
+
+        'color_id',
+
+        'name'
     ];
 
     public function product()
@@ -41,6 +45,6 @@ class ProductVariant extends Model
         return $this->hasMany(\App\Models\OrderItem::class, 'variant_id');
     }
 
-    
-    
+
+
 }

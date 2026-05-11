@@ -7,6 +7,7 @@ use App\Exceptions\BaseException;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\VariantSize;
+use App\Models\ProductImage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -38,6 +39,7 @@ class ProductService
                     $productVariant = ProductVariant::create([
 
                         'product_id' => $product->id,
+                        'name' => $variant['name'],
 
                         'color_id' => $variant['color_id'],
                     ]);
@@ -69,7 +71,45 @@ class ProductService
 
                             'price' => $size['price'],
                         ]);
+
+
+                        if (
+                            isset($variant['images'])
+                        ) {
+
+                            foreach (
+                                $variant['images']
+                                as $index => $image
+                            ) {
+
+                                $path = $image->store(
+                                    'products',
+                                    'public'
+                                );
+
+
+
+                                ProductImage::create([
+
+                                    'variant_id' =>
+                                        $productVariant->id,
+
+                                    'image_path' =>
+                                        $path,
+
+                                    'is_main' =>
+                                        $index === 0,
+
+                                    'order' =>
+                                        $index,
+                                ]);
+                            }
+                        }
+
                     }
+
+
+
                 }
 
                 return $product->load(
@@ -95,9 +135,9 @@ class ProductService
             'variants.sizes',
             'images'
         ])
-        ->withAvg('reviews', 'rating')
-        ->withCount('reviews')
-        ->paginate(10);
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
+            ->paginate(12);
     }
 
     public function show($slug)
@@ -107,10 +147,10 @@ class ProductService
             'variants.color',
             'variants.sizes'
         ])
-        ->withAvg('reviews', 'rating')
-        ->withCount('reviews')
-        ->where('slug', $slug)
-        ->firstOrFail();
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
+            ->where('slug', $slug)
+            ->firstOrFail();
     }
 
     public function update($id, array $data)
@@ -192,8 +232,28 @@ class ProductService
         $this->applyPrice($query, $filters);
 
         $this->applySorting($query, $filters);
+        if (!empty($filters['size'])) {
+            $sizes = explode(
+                ',',
+                $filters['size']
+            );
 
-        return $query->paginate(10);
+            $query->whereHas(
+
+                'sizes',
+
+                function ($q) use ($sizes) {
+
+                    $q->whereIn(
+                        'size',
+                        $sizes
+                    );
+                }
+            );
+        }
+
+        return $query->paginate(12);
+
     }
 
     private function baseQuery()
@@ -241,13 +301,21 @@ class ProductService
         }
     }
 
-    private function applyGender($query, $filters)
-    {
+    private function applyGender(
+        $query,
+        $filters
+    ) {
+
         if (!empty($filters['gender'])) {
 
-            $query->where(
-                'gender',
+            $genders = explode(
+                ',',
                 $filters['gender']
+            );
+
+            $query->whereIn(
+                'gender',
+                $genders
             );
         }
     }
@@ -269,18 +337,28 @@ class ProductService
         }
     }
 
-    private function applySize($query, $filters)
-    {
-        if (!empty($filters['sizes'])) {
-
+    private function applySize(
+        $query,
+        $filters
+    ) {
+        if (!empty($filters['size'])) {
+            $sizes = explode(
+                ',',
+                $filters['size']
+            );
             $query->whereHas(
-                'variants.sizes',
-                function ($q) use ($filters) {
-
-                    $q->whereIn(
-                        'size',
-                        $filters['sizes']
-                    );
+                'sizes',
+                function ($q) use ($sizes) {
+                    $q
+                        ->whereIn(
+                            'size',
+                            $sizes
+                        )
+                        ->where(
+                            'stock',
+                            '>',
+                            0
+                        );
                 }
             );
         }
@@ -308,25 +386,80 @@ class ProductService
         }
     }
 
-    private function applySorting($query, $filters)
-    {
-        if (!empty($filters['top_rated'])) {
+    private function applySorting(
+        $query,
+        $filters
+    ) {
 
-            $query->orderByDesc(
-                'reviews_avg_rating'
-            );
+        if (
+            empty($filters['sort'])
+        ) {
+            return;
         }
 
-        if (!empty($filters['most_reviewed'])) {
+        switch ($filters['sort']) {
 
-            $query->orderByDesc(
-                'reviews_count'
-            );
-        }
+            case 'price_asc':
 
-        if (!empty($filters['newest'])) {
+                $query
 
-            $query->latest();
+                    ->withMin(
+                        'sizes',
+                        'price'
+                    )
+
+                    ->orderBy(
+                        'sizes_min_price',
+                        'asc'
+                    );
+
+                break;
+
+
+
+            case 'price_desc':
+
+                $query
+
+                    ->withMin(
+                        'sizes',
+                        'price'
+                    )
+
+                    ->orderBy(
+                        'sizes_min_price',
+                        'desc'
+                    );
+
+                break;
+
+
+
+            case 'newest':
+
+                $query->latest();
+
+                break;
+
+
+
+            case 'most_reviewed':
+
+                $query->orderByDesc(
+                    'reviews_count'
+                );
+
+                break;
+
+
+
+            case 'top_rated':
+
+                $query->orderByDesc(
+                    'reviews_avg_rating'
+                );
+
+                break;
         }
     }
 }

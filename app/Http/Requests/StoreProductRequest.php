@@ -8,7 +8,7 @@ class StoreProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return  true; 
+        return true;
     }
 
     public function rules(): array
@@ -26,6 +26,25 @@ class StoreProductRequest extends FormRequest
             'variants.*.color_id' => ['required', 'distinct', 'exists:colors,id'],
 
             'variants.*.sizes' => ['required', 'array', 'min:1'],
+            'variants.*.name' => [
+                'required',
+                'string'
+            ],
+
+            'variants.*.images' => [
+                'required',
+                'array',
+                'min:1'
+            ],
+
+
+
+            'variants.*.images.*' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048'
+            ],
 
             'variants.*.sizes.*.size' => ['required', 'integer'],
             'variants.*.sizes.*.stock' => ['required', 'integer', 'min:0'],
@@ -62,6 +81,23 @@ class StoreProductRequest extends FormRequest
 
             'variants.*.sizes.*.stock.required' => 'Stok gerekli',
             'variants.*.sizes.*.stock.min' => 'Stok negatif olamaz',
+            'variants.*.name.required' =>
+                'Varyant adı gerekli',
+
+            'variants.*.images.required' =>
+                'Her varyantta fotoğraf olmalı',
+
+            'variants.*.images.min' =>
+                'En az 1 fotoğraf eklemelisin',
+
+            'variants.*.images.*.image' =>
+                'Dosya resim olmalı',
+
+            'variants.*.images.*.mimes' =>
+                'Sadece jpg, png, webp yükleyebilirsin',
+
+            'variants.*.images.*.max' =>
+                'Fotoğraf max 2MB olabilir',
 
             'variants.*.sizes.*.price.required' => 'Fiyat gerekli',
             'variants.*.sizes.*.price.min' => 'Fiyat negatif olamaz',

@@ -10,7 +10,7 @@ class Product extends Model
     protected $table = 'products';
 
 
-     protected $fillable = [
+    protected $fillable = [
         'name',
         'description',
         'category_id',
@@ -38,12 +38,48 @@ class Product extends Model
         return $this->belongsTo(\App\Models\Brand::class);
     }
 
-    public function reviews(){
+    public function reviews()
+    {
         return $this->hasMany(\App\Models\Review::class);
     }
 
     public function favorites()
     {
         return $this->hasMany(\App\Models\Favorite::class);
+    }
+    public function images()
+    {
+        return $this->hasManyThrough(
+
+            \App\Models\ProductImage::class,
+
+            \App\Models\ProductVariant::class,
+
+            'product_id',
+
+            'variant_id',
+
+            'id',
+
+            'id'
+        );
+    }
+
+    public function sizes()
+    {
+        return $this->hasManyThrough(
+
+            \App\Models\VariantSize::class,
+
+            \App\Models\ProductVariant::class,
+
+            'product_id',
+
+            'variant_id',
+
+            'id',
+
+            'id'
+        );
     }
 }

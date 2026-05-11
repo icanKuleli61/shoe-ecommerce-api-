@@ -24,27 +24,79 @@ class FilterProductRequest extends FormRequest
     {
         return [
 
-            'search' => ['nullable', 'string', 'max:100'],
+            'search' => [
+                'nullable',
+                'string',
+                'max:100'
+            ],
 
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'category_id' => [
+                'nullable',
+                'string'
+            ],
 
-            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
+            'brand_id' => [
+                'nullable',
+                'string'
+            ],
 
-            'gender' => ['nullable', 'in:male,female,unisex'],
+            'gender' => [
+                'nullable',
+                'string'
+            ],
 
-            'color_id' => ['nullable', 'integer', 'exists:colors,id'],
+            'color_id' => [
+                'nullable',
+                'string'
+            ],
 
-            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'size' => [
+                'nullable',
+                'string'
+            ],
 
-            'max_price' => ['nullable', 'numeric', 'min:0'],
+            'min_price' => [
+                'nullable',
+                'numeric',
+                'min:0'
+            ],
 
-            'top_rated' => ['nullable', 'boolean'],
+            'max_price' => [
+                'nullable',
+                'numeric',
+                'min:0'
+            ],
 
-            'most_reviewed' => ['nullable', 'boolean'],
+            'sort' => [
 
-            'newest' => ['nullable', 'boolean'],
+                'nullable',
+
+                'in:price_asc,price_desc,newest,most_reviewed,top_rated'
+            ],
         ];
     }
 
-    
+    public function messages(): array
+    {
+        return [
+
+            'search.max' =>
+                'Arama en fazla 100 karakter olabilir',
+
+            'min_price.numeric' =>
+                'Minimum fiyat sayı olmalı',
+
+            'min_price.min' =>
+                'Minimum fiyat 0 dan küçük olamaz',
+
+            'max_price.numeric' =>
+                'Maximum fiyat sayı olmalı',
+
+            'max_price.min' =>
+                'Maximum fiyat 0 dan küçük olamaz',
+
+            'sort.in' =>
+                'Geçersiz sıralama tipi',
+        ];
+    }
 }

@@ -28,6 +28,7 @@ class OrderListResource extends JsonResource
             },
 
             'created_at' => $this->created_at,
+            'items_count' => $this->items_count,
         ];
     }
 }

@@ -14,6 +14,11 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WalletController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\ColorController;
 
 
 
@@ -46,9 +51,45 @@ Route::prefix('products')->group(function () {
 
     Route::get('/{slug}', [ProductController::class, 'show']);
 
-    Route::get('{productId}/reviews', [ReviewController::class, 'index']);
+    Route::get('/{productId}/reviews', [ReviewController::class, 'index']);
 
     Route::get('/{productId}/statistics', [ReviewController::class, 'statistics']);
+});
+
+
+
+/*
+|--------------------------------------------------------------------------
+| ATTRIBUTE ROUTES
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('categories')->group(function () {
+
+    Route::get(
+        '/',
+        [CategoryController::class, 'index']
+    );
+});
+
+
+
+Route::prefix('brands')->group(function () {
+
+    Route::get(
+        '/',
+        [BrandController::class, 'index']
+    );
+});
+
+
+
+Route::prefix('colors')->group(function () {
+
+    Route::get(
+        '/',
+        [ColorController::class, 'index']
+    );
 });
 
 
@@ -139,8 +180,6 @@ Route::middleware('auth:api')->group(function () {
 
 
 
-
-
     /*
     |--------------------------------------------------------------------------
     | FAVORITES
@@ -204,7 +243,23 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/{id}/pay', [OrderController::class, 'pay']);
     });
 
+
+    Route::get(
+        '/wallet',
+        [WalletController::class, 'index']
+    );
+
+
+
+    Route::post(
+        '/wallet/add-balance',
+        [WalletController::class, 'addBalance']
+    );
+
+
+
 });
+
 
 
 
@@ -266,9 +321,57 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 
     Route::delete('/sizes/{id}', [VariantSizeController::class, 'destroy']);
 
+    /*
+    |--------------------------------------------------------------------------
+    | CATEGORY
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        '/categories',
+        [CategoryController::class, 'store']
+    );
+
+    Route::delete(
+        '/categories/{id}',
+        [CategoryController::class, 'destroy']
+    );
 
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | BRAND
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        '/brands',
+        [BrandController::class, 'store']
+    );
+
+    Route::delete(
+        '/brands/{id}',
+        [BrandController::class, 'destroy']
+    );
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | COLOR
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        '/colors',
+        [ColorController::class, 'store']
+    );
+
+    Route::delete(
+        '/colors/{id}',
+        [ColorController::class, 'destroy']
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -277,4 +380,10 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
     */
 
     Route::post('/images', [ProductImageController::class, 'store']);
+
+    Route::get(
+        '/dashboard',
+        [AdminDashboardController::class, 'index']
+    );
+
 });

@@ -48,6 +48,10 @@ enum ErrorCode: string
     case INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR';
 
 
+    case INVALID_AMOUNT = 'INVALID_AMOUNT';
+    
+    case SOMETHING_WENT_WRONG  = 'SOMETHING_WENT_WRONG';
+
 
     public function message(): string
     {
@@ -136,6 +140,10 @@ enum ErrorCode: string
 
             self::INTERNAL_SERVER_ERROR =>
             'Sunucu hatası oluştu.',
+
+            self::INVALID_AMOUNT => 'Geçersiz bakiye miktarı',
+
+            self::SOMETHING_WENT_WRONG => 'Bir hata oluştu.',
         };
     }
 
@@ -186,6 +194,9 @@ enum ErrorCode: string
                 // GENERAL
             self::NOT_FOUND => 404,
             self::INTERNAL_SERVER_ERROR => 500,
+
+            self::INVALID_AMOUNT => 422,
+            self::SOMETHING_WENT_WRONG => 422,
         };
     }
 }
