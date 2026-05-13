@@ -65,7 +65,7 @@ enum ErrorCode: string
             'Email veya şifre hatalı.',
 
             self::FORBIDDEN =>
-            'Bu işlem için yetkiniz yok.',
+            'Bu ürünü satın almadan yorum yapamazsınız.',
 
                 // VALIDATION
             self::VALIDATION_ERROR =>
@@ -132,7 +132,7 @@ enum ErrorCode: string
 
                 // REVIEW
             self::ALREADY_EXISTS =>
-            'Kayıt zaten mevcut.',
+            'Bu ürün için zaten yorum yaptınız.',
 
                 // GENERAL
             self::NOT_FOUND =>

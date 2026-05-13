@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ReviewResource;
 use Illuminate\Http\Request;
 use App\Services\ReviewService;
+use App\Models\OrderItem;
 use App\Http\Resources\ReviewStatisticsResource;
 
 class ReviewController extends Controller
 {
     protected ReviewService $service;
 
-    protected function __construct(ReviewService $service){
+    public function __construct(
+        ReviewService $service
+    ) {
         $this->service = $service;
     }
 
@@ -23,7 +26,7 @@ class ReviewController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ReviewResource($request)
+            'data' => new ReviewResource($review)
         ]);
     }
 
@@ -46,7 +49,7 @@ class ReviewController extends Controller
 
             'success' => true,
 
-            'data' =>  new ReviewStatisticsResource($statistics)
+            'data' => new ReviewStatisticsResource($statistics)
         ]);
     }
 }

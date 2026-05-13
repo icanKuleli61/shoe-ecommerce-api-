@@ -32,8 +32,14 @@ class ReviewService
     public function getByProduct($productId)
     {
         return Review::with('user')
-            ->where('product_id', $productId)
+
+            ->where(
+                'product_id',
+                $productId
+            )
+
             ->latest()
+
             ->paginate(10);
     }
 
@@ -41,19 +47,38 @@ class ReviewService
     {
         return [
 
-            'average_rating' => $this->calculateAverageRating($productId),
+            'average_rating' =>
 
-            'reviews_count' => $this->calculateReviewCount($productId),
+                $this->calculateAverageRating(
+                    $productId
+                ),
 
-            'rating_distribution' => $this->calculateRatingDistribution($productId),
+            'reviews_count' =>
+
+                $this->calculateReviewCount(
+                    $productId
+                ),
+
+            'rating_distribution' =>
+
+                $this->calculateRatingDistribution(
+                    $productId
+                ),
         ];
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER
+    |--------------------------------------------------------------------------
+    */
 
     private function getUserId()
     {
         $userId = auth()->id();
 
         if (!$userId) {
+
             throw new BaseException(
                 ErrorCode::UNAUTHORIZED
             );
@@ -62,12 +87,21 @@ class ReviewService
         return $userId;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | PURCHASE CHECK
+    |--------------------------------------------------------------------------
+    */
+
     private function checkPurchased(
         $userId,
         $productId
     ) {
+
         $hasPurchased = OrderItem::whereHas(
+
             'order',
+
             function ($q) use ($userId) {
 
                 $q->where(
@@ -75,102 +109,192 @@ class ReviewService
                     $userId
                 );
             }
+
         )
-        ->where('product_id', $productId)
+        ->whereHas(
+
+            'variant',
+
+            function ($q) use ($productId) {
+
+                $q->where(
+                    'product_id',
+                    $productId
+                );
+            }
+
+        )
         ->exists();
 
         if (!$hasPurchased) {
+
             throw new BaseException(
                 ErrorCode::FORBIDDEN
             );
         }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ALREADY REVIEWED CHECK
+    |--------------------------------------------------------------------------
+    */
+
     private function checkAlreadyReviewed(
         $userId,
         $productId
     ) {
+
         $exists = Review::where(
+
             'user_id',
             $userId
+
         )
         ->where(
+
             'product_id',
             $productId
+
         )
         ->exists();
 
         if ($exists) {
+
             throw new BaseException(
                 ErrorCode::ALREADY_EXISTS
             );
         }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE REVIEW
+    |--------------------------------------------------------------------------
+    */
+
     private function createReview(
         $userId,
         array $data
     ) {
+
         return Review::create([
 
             'user_id' => $userId,
 
-            'product_id' => $data['product_id'],
+            'product_id' =>
+                $data['product_id'],
 
-            'rating' => $data['rating'],
+            'rating' =>
+                $data['rating'],
 
-            'comment' => $data['comment'],
+            'comment' =>
+                $data['comment'],
         ]);
     }
 
-    private function calculateAverageRating($productId)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | AVERAGE RATING
+    |--------------------------------------------------------------------------
+    */
+
+    private function calculateAverageRating(
+        $productId
+    ) {
+
         return round(
 
             Review::where(
+
                 'product_id',
                 $productId
+
             )->avg('rating') ?? 0,
 
             1
         );
     }
 
-    private function calculateReviewCount($productId)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | REVIEW COUNT
+    |--------------------------------------------------------------------------
+    */
+
+    private function calculateReviewCount(
+        $productId
+    ) {
+
         return Review::where(
+
             'product_id',
             $productId
+
         )->count();
     }
 
-    private function calculateRatingDistribution($productId)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | DISTRIBUTION
+    |--------------------------------------------------------------------------
+    */
+
+    private function calculateRatingDistribution(
+        $productId
+    ) {
+
         return [
 
-            5 => $this->countByRating($productId, 5),
+            5 => $this->countByRating(
+                $productId,
+                5
+            ),
 
-            4 => $this->countByRating($productId, 4),
+            4 => $this->countByRating(
+                $productId,
+                4
+            ),
 
-            3 => $this->countByRating($productId, 3),
+            3 => $this->countByRating(
+                $productId,
+                3
+            ),
 
-            2 => $this->countByRating($productId, 2),
+            2 => $this->countByRating(
+                $productId,
+                2
+            ),
 
-            1 => $this->countByRating($productId, 1),
+            1 => $this->countByRating(
+                $productId,
+                1
+            ),
         ];
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | COUNT BY RATING
+    |--------------------------------------------------------------------------
+    */
 
     private function countByRating(
         $productId,
         $rating
     ) {
+
         return Review::where(
+
             'product_id',
             $productId
+
         )
         ->where(
+
             'rating',
             $rating
+
         )
         ->count();
     }

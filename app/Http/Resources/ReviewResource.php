@@ -14,14 +14,21 @@ class ReviewResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-         return [
+        return [
+
             'id' => $this->id,
+
             'rating' => $this->rating,
+
             'comment' => $this->comment,
 
-            'user' => $this->user?->name ?? 'Silinmiş kullanıcı',
+            'user' =>
+                $this->user?->name
+                ?? 'Silinmiş kullanıcı',
 
-            'created_at' => $this->created_at,
+            'created_at' =>
+                $this->created_at
+                    ->format('d.m.Y'),
         ];
     }
 }

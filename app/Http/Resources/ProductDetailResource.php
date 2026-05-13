@@ -17,33 +17,59 @@ class ProductDetailResource extends JsonResource
         return [
 
             'id' => $this->id,
+
             'name' => $this->name,
+
             'slug' => $this->slug,
+
             'description' => $this->description,
 
             'category' => $this->category?->name,
+
             'brand' => $this->brand?->name,
 
             'images' => $this->images->map(function ($image) {
+
                 return [
-                    'url' => $image->image_path,
+
+                    'url' => asset(
+                        'storage/' .
+                        $image->image_path
+                    ),
+
                     'is_main' => $image->is_main
                 ];
             }),
 
             'variants' => $this->variants->map(function ($variant) {
+
                 return [
+
                     'id' => $variant->id,
+
+                    'name' => $variant->name,
+
                     'color_id' => $variant->color_id,
+
                     'color' => $variant->color?->name,
 
+                    'images' => ProductImageResource::collection(
+                        $variant->images
+                    ),
+
                     'sizes' => $variant->sizes->map(function ($size) {
+
                         return [
+
+                            'id' => $size->id,
+
                             'size' => $size->size,
+
                             'stock' => $size->stock,
-                            'price' => $size->price
+
+                            'price' => $size->price,
                         ];
-                    })
+                    }),
                 ];
             }),
         ];

@@ -54,6 +54,7 @@ class ProductService
                                 $seenSizes
                             )
                         ) {
+
                             throw new \Exception(
                                 'Aynı varyantta aynı numara tekrar edemez'
                             );
@@ -63,49 +64,54 @@ class ProductService
 
                         VariantSize::create([
 
-                            'variant_id' => $productVariant->id,
+                            'variant_id' =>
+                                $productVariant->id,
 
-                            'size' => $size['size'],
+                            'size' =>
+                                $size['size'],
 
-                            'stock' => $size['stock'],
+                            'stock' =>
+                                $size['stock'],
 
-                            'price' => $size['price'],
+                            'price' =>
+                                $size['price'],
                         ]);
+                    }
 
 
-                        if (
-                            isset($variant['images'])
+                    /*
+                    |--------------------------------------------------------------------------
+                    | VARYANT GÖRSELLERİ
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (isset($variant['images'])) {
+
+                        foreach (
+                            $variant['images']
+                            as $index => $image
                         ) {
 
-                            foreach (
-                                $variant['images']
-                                as $index => $image
-                            ) {
+                            $path = $image->store(
+                                'products',
+                                'public'
+                            );
 
-                                $path = $image->store(
-                                    'products',
-                                    'public'
-                                );
+                            ProductImage::create([
 
+                                'variant_id' =>
+                                    $productVariant->id,
 
+                                'image_path' =>
+                                    $path,
 
-                                ProductImage::create([
+                                'is_main' =>
+                                    $index === 0,
 
-                                    'variant_id' =>
-                                        $productVariant->id,
-
-                                    'image_path' =>
-                                        $path,
-
-                                    'is_main' =>
-                                        $index === 0,
-
-                                    'order' =>
-                                        $index,
-                                ]);
-                            }
+                                'order' =>
+                                    $index,
+                            ]);
                         }
-
                     }
 
 
@@ -133,7 +139,7 @@ class ProductService
     {
         return Product::with([
             'variants.sizes',
-            'images'
+            'variants.images'
         ])
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')
@@ -143,13 +149,19 @@ class ProductService
     public function show($slug)
     {
         return Product::with([
-            'images',
+
+            'variants.images',
             'variants.color',
             'variants.sizes'
+
         ])
+
             ->withAvg('reviews', 'rating')
+
             ->withCount('reviews')
+
             ->where('slug', $slug)
+
             ->firstOrFail();
     }
 
@@ -267,14 +279,56 @@ class ProductService
             ->withCount('reviews');
     }
 
-    private function applySearch($query, $filters)
-    {
-        if (!empty($filters['search'])) {
+    private function applySearch(
+        $query,
+        $filters
+    ) {
+
+        if (
+            !empty($filters['search'])
+        ) {
+
+            $search =
+                $filters['search'];
 
             $query->where(
-                'name',
-                'like',
-                '%' . $filters['search'] . '%'
+
+                function ($q) use ($search) {
+
+                    $q->where(
+                        'name',
+                        'ILIKE',
+                        "%{$search}%"
+                    )
+
+                        ->orWhereHas(
+
+                            'brand',
+
+                            function ($brandQuery) use ($search) {
+
+                                $brandQuery->where(
+                                    'name',
+                                    'ILIKE',
+                                    "%{$search}%"
+                                );
+                            }
+                        )
+
+                        ->orWhereHas(
+
+                            'category',
+
+                            function ($categoryQuery) use ($search) {
+
+                                $categoryQuery->where(
+                                    'name',
+                                    'ILIKE',
+                                    "%{$search}%"
+                                );
+                            }
+                        );
+                }
             );
         }
     }
@@ -364,23 +418,45 @@ class ProductService
         }
     }
 
-    private function applyPrice($query, $filters)
-    {
+    private function applyPrice(
+        $query,
+        $filters
+    ) {
+
         if (
-            !empty($filters['min_price']) &&
+            !empty($filters['min_price'])
+        ) {
+
+            $query->whereHas(
+
+                'variants.sizes',
+
+                function ($q) use ($filters) {
+
+                    $q->where(
+                        'price',
+                        '>=',
+                        $filters['min_price']
+                    );
+                }
+            );
+        }
+
+        if (
             !empty($filters['max_price'])
         ) {
 
             $query->whereHas(
+
                 'variants.sizes',
+
                 function ($q) use ($filters) {
 
-                    $q->whereBetween('price', [
-
-                        $filters['min_price'],
-
+                    $q->where(
+                        'price',
+                        '<=',
                         $filters['max_price']
-                    ]);
+                    );
                 }
             );
         }

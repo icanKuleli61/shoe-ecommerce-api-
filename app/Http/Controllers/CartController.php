@@ -6,22 +6,24 @@ use Illuminate\Http\Request;
 use App\Services\CartService;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\UpdateCartItemRequest;
+use App\Http\Resources\CartResource;
 
 class CartController extends Controller
 {
     protected CartService $service;
 
-    protected function __construct(CartService $service){
+    public function __construct(CartService $service)
+    {
         $this->service = $service;
     }
 
-    public function add(AddToCartRequest  $request)
+    public function add(AddToCartRequest $request)
     {
         $cart = $this->service->add($request->validated());
 
         return response()->json([
             'success' => true,
-            'data' => $cart
+            'data' => new CartResource($cart)
         ]);
     }
 
@@ -34,7 +36,7 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $cart
+            'data' => CartResource::collection($cart)
         ]);
     }
 
@@ -50,7 +52,7 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $cart
+            'data' => new CartResource($cart)
         ]);
     }
 
@@ -79,5 +81,5 @@ class CartController extends Controller
             'message' => 'Sepet temizlendi'
         ]);
     }
-    
+
 }

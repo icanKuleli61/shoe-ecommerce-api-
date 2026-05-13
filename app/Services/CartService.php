@@ -25,8 +25,25 @@ class CartService
             ->first();
 
         if ($cartItem) {
-            // ✔ varsa quantity artır
-            $cartItem->quantity += $data['quantity'];
+
+            $size = VariantSize::find(
+                $data['size_id']
+            );
+
+            $newQuantity =
+                $cartItem->quantity +
+                $data['quantity'];
+
+            if ($size->stock < $newQuantity) {
+
+                throw new BaseException(
+                    ErrorCode::INSUFFICIENT_STOCK
+                );
+            }
+
+            $cartItem->quantity =
+                $newQuantity;
+
             $cartItem->save();
 
             return $cartItem;
@@ -62,11 +79,16 @@ class CartService
         $userId = auth()->id();
 
         return CartItem::with([
+
+            'variant.product',
             'variant.color',
+            'variant.images',
             'size'
+
         ])
-        ->where('user_id', $userId)
-        ->get();
+            ->where('user_id', $userId)
+            ->latest()
+            ->get();
     }
 
     /**
@@ -82,7 +104,20 @@ class CartService
             throw new BaseException(ErrorCode::NOT_FOUND);
         }
 
-        $cartItem->quantity = $data['quantity'];
+        $size = VariantSize::find(
+            $cartItem->size_id
+        );
+
+        if ($size->stock < $data['quantity']) {
+
+            throw new BaseException(
+                ErrorCode::INSUFFICIENT_STOCK
+            );
+        }
+
+        $cartItem->quantity =
+            $data['quantity'];
+
         $cartItem->save();
 
         return $cartItem;
