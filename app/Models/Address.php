@@ -12,6 +12,8 @@ class Address extends Model
     protected $fillable = [
 
         'user_id',
+        'full_name',
+        'phone',
         'city_id',
         'district_id',
         'neighborhood_id',
@@ -41,4 +43,10 @@ class Address extends Model
         return $this->belongsTo(Neighborhood::class);
     }
 
+    public function orders()
+    {
+        return $this->hasMany(
+            \App\Models\Order::class
+        );
+    }
 }

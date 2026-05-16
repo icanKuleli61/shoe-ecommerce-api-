@@ -17,7 +17,16 @@ class CartResource extends JsonResource
         $image =
             $this->variant?->images?->first();
 
+        $stock =
+            $this->size?->stock ?? 0;
+
         return [
+
+            /*
+            |--------------------------------------------------------------------------
+            | BASIC
+            |--------------------------------------------------------------------------
+            */
 
             'id' => $this->id,
 
@@ -39,6 +48,12 @@ class CartResource extends JsonResource
             'size' =>
                 $this->size?->size,
 
+            /*
+            |--------------------------------------------------------------------------
+            | PRICE
+            |--------------------------------------------------------------------------
+            */
+
             'price' =>
                 (float) $this->price,
 
@@ -51,11 +66,61 @@ class CartResource extends JsonResource
                     $this->quantity
                 ),
 
-            'stock' =>
-                $this->size?->stock,
+            /*
+            |--------------------------------------------------------------------------
+            | STOCK
+            |--------------------------------------------------------------------------
+            */
 
-            'image' =>
-                $image?->url,
+            'stock' => $stock,
+
+            'stock_status' =>
+
+                $stock <= 0
+
+                ? 'out_of_stock'
+
+                : (
+                    $stock <= 3
+
+                    ? 'low_stock'
+
+                    : 'in_stock'
+                ),
+
+            'stock_text' =>
+
+                $stock <= 0
+
+                ? 'Tükendi'
+
+                : (
+                    $stock <= 3
+
+                    ? 'Son ' .
+                    $stock .
+                    ' ürün'
+
+                    : 'Stokta mevcut'
+                ),
+
+            'max_quantity' => $stock,
+
+            'is_available' =>
+                $stock > 0,
+
+            /*
+            |--------------------------------------------------------------------------
+            | IMAGE
+            |--------------------------------------------------------------------------
+            */
+
+            'image' => $image
+                ? asset(
+                    'storage/' .
+                    $image->image_path
+                )
+                : null,
         ];
     }
 }

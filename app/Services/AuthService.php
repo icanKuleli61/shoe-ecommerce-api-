@@ -42,6 +42,18 @@ class AuthService
             Address::create([
 
                 'user_id' => $user->id,
+                'full_name' =>
+
+                    trim(
+
+                        $data['first_name'] . ' ' .
+
+                        $data['last_name']
+                    ),
+
+                'phone' =>
+
+                    $data['phone'],
 
                 'city_id' => $data['city_id'],
 

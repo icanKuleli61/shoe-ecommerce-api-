@@ -52,6 +52,8 @@ enum ErrorCode: string
     
     case SOMETHING_WENT_WRONG  = 'SOMETHING_WENT_WRONG';
 
+    case INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE';
+
 
     public function message(): string
     {
@@ -130,6 +132,7 @@ enum ErrorCode: string
             self::PAYMENT_FAILED =>
             'Ödeme başarısız oldu.',
 
+            self::INSUFFICIENT_BALANCE => 'Cüzdan bakiyeniz yetersiz.',
                 // REVIEW
             self::ALREADY_EXISTS =>
             'Bu ürün için zaten yorum yaptınız.',
@@ -180,6 +183,8 @@ enum ErrorCode: string
 
                 // CART
             self::CART_EMPTY => 400,
+            self::INSUFFICIENT_BALANCE => 400,
+            
             self::CART_ITEM_NOT_FOUND => 404,
             self::INSUFFICIENT_STOCK => 409,
 

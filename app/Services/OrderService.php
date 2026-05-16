@@ -3,207 +3,522 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\Address;
 use App\Models\CartItem;
+use App\Models\OrderItem;
 use App\Models\VariantSize;
+use App\Models\WalletTransaction;
+
 use Illuminate\Support\Facades\DB;
+
 use App\Exceptions\BaseException;
 use App\Enums\ErrorCode;
 
 class OrderService
 {
-    public function createFromCart(array $data)
-    {
-        return DB::transaction(function () use ($data) {
+    public function createFromCart(
+        array $data
+    ): Order {
 
-            $cartItems = $this->getUserCart();
+        return DB::transaction(
 
-            $total = $this->calculateTotal($cartItems);
+            function () use ($data) {
 
-            $order = $this->createOrder($data, $total);
+                $cartItems =
+                    $this->getUserCart();
 
-            $this->createOrderItems($order, $cartItems);
+                $address =
+                    $this->getUserAddress(
+                        $data['address_id']
+                    );
 
-            $this->clearCart();
+                $subtotal =
+                    $this->calculateSubtotal(
+                        $cartItems
+                    );
 
-            return $order->load('items');
-        });
+                $shippingPrice =
+                    $this->calculateShipping(
+                        $subtotal
+                    );
+
+                $totalPrice =
+                    $subtotal +
+                    $shippingPrice;
+
+                $this->validateStock(
+                    $cartItems
+                );
+
+                $this->validatePaymentMethod(
+                    $data['payment_method']
+                );
+
+                $order =
+                    $this->createOrder(
+
+                        data: $data,
+
+                        address: $address,
+
+                        subtotal: $subtotal,
+
+                        shippingPrice: $shippingPrice,
+
+                        totalPrice: $totalPrice
+                    );
+
+                $this->createOrderItems(
+
+                    order: $order,
+
+                    cartItems: $cartItems
+                );
+
+                $this->processPayment(
+                    $order
+                );
+
+                $this->decreaseStocks(
+                    $cartItems
+                );
+
+                $this->clearCart();
+
+                return $order->load(
+                    'items'
+                );
+            }
+        );
     }
 
-    private function getUserCart()
+
+    protected function getUserCart()
     {
         $userId = auth()->id();
 
         if (!$userId) {
-            throw new BaseException(ErrorCode::UNAUTHORIZED);
+
+            throw new BaseException(
+                ErrorCode::UNAUTHORIZED
+            );
         }
 
-        $cartItems = CartItem::with(['variant.color', 'variant.product', 'size'])
-            ->where('user_id', $userId)
+        $cartItems = CartItem::with([
+
+            'variant.product',
+            'variant.color',
+            'size'
+
+        ])
+            ->where(
+                'user_id',
+                $userId
+            )
             ->get();
 
         if ($cartItems->isEmpty()) {
-            throw new BaseException(ErrorCode::CART_EMPTY);
+
+            throw new BaseException(
+                ErrorCode::EMPTY_CART
+            );
         }
 
         return $cartItems;
     }
 
-    private function calculateTotal($cartItems)
-    {
-        return $cartItems->sum(fn($item) => $item->price * $item->quantity);
+    protected function getUserAddress(
+        int $addressId
+    ): Address {
+
+        $address = Address::with([
+
+            'city',
+            'district',
+            'neighborhood'
+
+        ])
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->find($addressId);
+
+        if (!$address) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        return $address;
     }
 
-    private function createOrder(array $data, $total)
-    {
-        return Order::create([
-            'user_id' => auth()->id(),
-            'total_price' => $total,
-            'status' => Order::STATUS_PENDING,
 
-            'full_name' => $data['full_name'],
-            'phone' => $data['phone'],
-            'city' => $data['city'],
-            'district' => $data['district'],
-            'neighborhood' => $data['neighborhood'],
-            'address_text' => $data['address_text'],
+    protected function calculateSubtotal(
+        $cartItems
+    ): float {
+
+        return $cartItems->sum(
+
+            fn($item) =>
+
+            $item->price *
+
+            $item->quantity
+        );
+    }
+
+
+    protected function calculateShipping(
+        float $subtotal
+    ): float {
+
+        return $subtotal >= 3000
+            ? 0
+            : 99;
+    }
+
+
+    protected function validateStock(
+        $cartItems
+    ): void {
+
+        foreach ($cartItems as $item) {
+
+            $size = VariantSize::find(
+                $item->size_id
+            );
+
+            if (!$size) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+            if (
+
+                $size->stock <
+
+                $item->quantity
+
+            ) {
+
+                throw new BaseException(
+                    ErrorCode::INSUFFICIENT_STOCK
+                );
+            }
+        }
+    }
+
+
+    protected function validatePaymentMethod(
+        string $paymentMethod
+    ): void {
+
+        $allowedMethods = [
+
+            Order::PAYMENT_METHOD_CARD,
+
+            Order::PAYMENT_METHOD_WALLET
+        ];
+
+        if (
+
+            !in_array(
+                $paymentMethod,
+                $allowedMethods
+            )
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::PAYMENT_FAILED
+            );
+        }
+    }
+
+    protected function createOrder(
+
+        array $data,
+
+        Address $address,
+
+        float $subtotal,
+
+        float $shippingPrice,
+
+        float $totalPrice
+
+    ): Order {
+
+        return Order::create([
+
+            'user_id' =>
+                auth()->id(),
+
+            'address_id' =>
+                $address->id,
+
+            'subtotal' =>
+                $subtotal,
+
+            'shipping_price' =>
+                $shippingPrice,
+
+            'total_price' =>
+                $totalPrice,
+
+            'payment_method' =>
+                $data['payment_method'],
+
+            'payment_status' =>
+                Order::PAYMENT_STATUS_PENDING,
+
+            'status' =>
+                Order::STATUS_PENDING,
+
+            'full_name' =>
+                $address->full_name,
+
+            'phone' =>
+                $address->phone,
+
+            'city' =>
+                $address->city->name,
+
+            'district' =>
+                $address->district->name,
+
+            'neighborhood' =>
+                $address->neighborhood->name,
+
+            'address_text' =>
+                $address->address,
         ]);
     }
 
-    private function createOrderItems($order, $cartItems)
-    {
+
+    protected function createOrderItems(
+
+        Order $order,
+
+        $cartItems
+
+    ): void {
+
         foreach ($cartItems as $item) {
 
-            $size = VariantSize::find($item->size_id);
-
-            if (!$size) {
-                throw new BaseException(ErrorCode::NOT_FOUND);
-            }
-
-            if ($size->stock < $item->quantity) {
-                throw new BaseException(ErrorCode::INSUFFICIENT_STOCK);
-            }
-
-            // 🔥 stok düş
-            $size->decrement('stock', $item->quantity);
-
-            // 🔥 order item (snapshot)
             OrderItem::create([
-                'order_id' => $order->id,
-                'variant_id' => $item->variant_id,
-                'size_id' => $item->size_id,
 
-                'product_name' => $item->variant->product->name ?? 'Ürün',
-                'variant_name' => $item->variant->color->name ?? null,
-                'size_value' => $item->size->size ?? null,
+                'order_id' =>
+                    $order->id,
 
-                'quantity' => $item->quantity,
-                'price' => $item->price,
+                'variant_id' =>
+                    $item->variant_id,
+
+                'size_id' =>
+                    $item->size_id,
+
+                'product_name' =>
+
+                    $item->variant
+                        ?->product
+                            ?->name
+
+                    ?? 'Ürün',
+
+                'variant_name' =>
+
+                    $item->variant
+                        ?->color
+                            ?->name,
+
+                'size_value' =>
+
+                    $item->size
+                            ?->size,
+
+                'quantity' =>
+                    $item->quantity,
+
+                'price' =>
+                    $item->price,
             ]);
         }
     }
 
-    private function clearCart()
-    {
-        CartItem::where('user_id', auth()->id())->delete();
-    }
 
-    public function index()
-    {
-        $userId = auth()->id();
+    protected function processPayment(
+        Order $order
+    ): void {
 
-        if (!$userId) {
-            throw new BaseException(ErrorCode::UNAUTHORIZED);
+        if (
+
+            $order->payment_method ===
+
+            Order::PAYMENT_METHOD_CARD
+
+        ) {
+
+            $this->markOrderAsPaid(
+                $order
+            );
+
+            return;
         }
 
-        return Order::withCount('items')
-            ->where('user_id', $userId)
-            ->latest()
-            ->get();
-    }
-    public function show($id)
-    {
-        $userId = auth()->id();
 
-        if (!$userId) {
-            throw new BaseException(ErrorCode::UNAUTHORIZED);
+        $this->processWalletPayment(
+            $order
+        );
+    }
+
+
+    protected function processWalletPayment(
+        Order $order
+    ): void {
+
+        $wallet = auth()
+            ->user()
+            ->wallet;
+
+        if (!$wallet) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
         }
 
-        $order = Order::with(['items'])
-            ->where('user_id', $userId)
+        if (
+
+            $wallet->balance <
+
+            $order->total_price
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::INSUFFICIENT_BALANCE
+            );
+        }
+
+        $wallet->decrement(
+
+            'balance',
+
+            $order->total_price
+        );
+
+        WalletTransaction::create([
+
+            'wallet_id' =>
+                $wallet->id,
+
+            'type' =>
+                'payment',
+
+            'amount' =>
+                -$order->total_price,
+
+            'current_balance' =>
+                $wallet->fresh()->balance,
+
+            'description' =>
+                'Sipariş ödemesi yapıldı.',
+
+            'reference_type' =>
+                'order',
+
+            'reference_id' =>
+                $order->id
+        ]);
+
+        $this->markOrderAsPaid(
+            $order
+        );
+    }
+
+
+    protected function markOrderAsPaid(
+        Order $order
+    ): void {
+
+        $order->payment_status =
+            Order::PAYMENT_STATUS_PAID;
+
+        $order->status =
+            Order::STATUS_APPROVED;
+
+        $order->save();
+    }
+
+
+    protected function decreaseStocks(
+        $cartItems
+    ): void {
+
+        foreach ($cartItems as $item) {
+
+            VariantSize::find(
+                $item->size_id
+            )?->decrement(
+
+                    'stock',
+
+                    $item->quantity
+                );
+        }
+    }
+
+    protected function clearCart(): void
+    {
+        CartItem::where(
+
+            'user_id',
+            auth()->id()
+
+        )->delete();
+    }
+
+    public function show($id): Order
+    {
+        $order = Order::with([
+
+            'items.variant.images',
+            'address',
+            'user'
+
+        ])
+            ->where(
+                'user_id',
+                auth()->id()
+            )
             ->find($id);
 
         if (!$order) {
-            throw new BaseException(ErrorCode::NOT_FOUND);
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
         }
 
         return $order;
     }
-
-    public function updateStatus($id, $status)
+    public function index()
     {
-        $order = Order::find($id);
+        return Order::with([
 
-        if (!$order) {
-            throw new BaseException(ErrorCode::NOT_FOUND);
-        }
+            'items.variant.images'
 
-        $this->checkStatusTransition($order->status, $status);
-
-        $order->status = $status;
-        $order->save();
-
-        return $order;
-    }
-
-    private function checkStatusTransition($current, $new)
-    {
-        $allowed = [
-            Order::STATUS_PENDING => [
-                Order::STATUS_PAID,
-                Order::STATUS_CANCELLED
-            ],
-
-            Order::STATUS_PAID => [
-                Order::STATUS_SHIPPED,
-                Order::STATUS_CANCELLED
-            ],
-
-            Order::STATUS_SHIPPED => [
-                Order::STATUS_COMPLETED
-            ],
-
-            Order::STATUS_COMPLETED => [],
-
-            Order::STATUS_CANCELLED => [],
-        ];
-
-        if (!in_array($new, $allowed[$current] ?? [])) {
-            throw new BaseException(ErrorCode::INVALID_STATUS_TRANSITION);
-        }
-    }
-
-    public function pay($id)
-    {
-        $order = Order::find($id);
-
-        if (!$order) {
-            throw new BaseException(ErrorCode::NOT_FOUND);
-        }
-
-        if ($order->status !== Order::STATUS_PENDING) {
-            throw new BaseException(ErrorCode::INVALID_STATUS_TRANSITION);
-        }
-
-        $paymentResult = app(\App\Services\PaymentService::class)->pay($order);
-
-        if (!$paymentResult['success']) {
-            throw new BaseException(ErrorCode::PAYMENT_FAILED);
-        }
-
-        $order->status = Order::STATUS_PAID;
-        $order->save();
-
-        return $order;
+        ])
+            ->withCount('items')
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->latest()
+            ->paginate(10);
     }
 }

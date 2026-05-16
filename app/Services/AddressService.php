@@ -10,20 +10,75 @@ class AddressService
 {
     public function store($user_id, $data)
     {
-        $hasAnyAddress = Address::where('user_id', $user_id)->exists();
+        $hasAnyAddress = Address::where(
+            'user_id',
+            $user_id
+        )->exists();
 
         if (!$hasAnyAddress) {
+
             $data['is_default'] = true;
         }
 
-        if (($data['is_default'] ?? false) === true) {
-            Address::where('user_id', $user_id)
-                ->update(['is_default' => false]);
+        if (
+
+            ($data['is_default'] ?? false)
+            === true
+
+        ) {
+
+            Address::where(
+
+                'user_id',
+                $user_id
+
+            )->update([
+
+                        'is_default' => false
+                    ]);
         }
 
+        $user = auth()->user();
+
         return Address::create([
-            'user_id' => $user_id,
-            ...$data
+
+            'user_id' =>
+                $user_id,
+
+            'full_name' =>
+
+                !empty($data['full_name'])
+
+                ? $data['full_name']
+
+                : $user->name,
+
+            'phone' =>
+
+                !empty($data['phone_override'])
+
+                ? $data['phone_override'] 
+
+                : $user->phone,
+
+            'city_id' =>
+                $data['city_id'],
+
+            'district_id' =>
+                $data['district_id'],
+
+            'neighborhood_id' =>
+                $data['neighborhood_id'],
+
+            'address' =>
+                $data['address'],
+
+            'title' =>
+                $data['title'],
+
+            'is_default' =>
+                $data['is_default']
+                ?? false,
         ]);
     }
 

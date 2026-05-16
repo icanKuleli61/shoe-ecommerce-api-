@@ -2,75 +2,187 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Services\OrderService;
+
 use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderStatusRequest;
+
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\OrderListResource;
-use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderDetailResource;
 
 class OrderController extends Controller
 {
-    protected OrderService $service;
+    public function __construct(
 
-    public function __construct(OrderService $service){
-        $this->service = $service;
+        protected OrderService $service
+
+    ) {
     }
 
-    public function store(StoreOrderRequest $request)
-    {
-        $order = $this->service->createFromCart(
-            $request->validated()
-        );
+
+    /*
+    |--------------------------------------------------------------------------
+    | STORE
+    |--------------------------------------------------------------------------
+    */
+
+    public function store(
+        StoreOrderRequest $request
+    ) {
+
+        $order =
+
+            $this->service
+                ->createFromCart(
+
+                    $request->validated()
+
+                );
 
         return response()->json([
+
             'success' => true,
-            'data' => new OrderResource($order)
-        ]);
+
+            'message' =>
+                'Sipariş başarıyla oluşturuldu.',
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
+
+        ], 201);
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX
+    |--------------------------------------------------------------------------
+    */
 
     public function index()
     {
-        $orders = $this->service->index();
+        $orders =
+            $this->service->index();
 
         return response()->json([
+
             'success' => true,
-            'data' => OrderListResource::collection($orders)
+
+            'data' =>
+
+                OrderListResource::collection(
+                    $orders
+                )
         ]);
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW
+    |--------------------------------------------------------------------------
+    */
 
     public function show($id)
     {
-        $order = $this->service->show($id);
+        $order =
+            $this->service->show($id);
 
         return response()->json([
-            'success' => true,
-            'data' => new OrderResource($order)
-        ]);
-    }
 
-    public function updateStatus(UpdateOrderStatusRequest $request, $id)
-    {
-        $order = $this->service->updateStatus(
-            $id,
-            $request->validated()['status']
-        );
-
-        return response()->json([
             'success' => true,
-            'data' => new OrderResource($order)
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
         ]);
     }
 
 
-    public function pay($id)
-    {
-        $order = $this->service->pay($id);
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE STATUS
+    |--------------------------------------------------------------------------
+    */
+
+    public function updateStatus(
+
+        UpdateOrderStatusRequest $request,
+
+        $id
+
+    ) {
+
+        $order =
+
+            $this->service
+                ->updateStatus(
+
+                    $id,
+
+                    $request->validated()['status']
+                );
 
         return response()->json([
+
             'success' => true,
-            'data' => new OrderResource($order)
+
+            'message' =>
+                'Sipariş durumu güncellendi.',
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
+        ]);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CANCEL
+    |--------------------------------------------------------------------------
+    */
+
+    public function cancel($id)
+    {
+        $order =
+            $this->service
+                ->cancel($id);
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Sipariş iptal edildi.',
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
+        ]);
+    }
+
+    public function detail($id)
+    {
+        $order =
+            $this->service
+                ->show($id);
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' =>
+
+                new OrderDetailResource(
+                    $order
+                )
         ]);
     }
 }

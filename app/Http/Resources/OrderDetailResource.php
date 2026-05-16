@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class OrderResource extends JsonResource
+class OrderDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
@@ -13,7 +13,10 @@ class OrderResource extends JsonResource
 
             'id' => $this->id,
 
-            'order_no' => $this->generateOrderNumber(),
+            'order_no' =>
+
+                $this->generateOrderNumber(),
+
 
             /*
             |--------------------------------------------------------------------------
@@ -26,6 +29,9 @@ class OrderResource extends JsonResource
 
             'status_text' =>
                 $this->getStatusText(),
+
+            'status_step' =>
+                $this->getStatusStep(),
 
 
             /*
@@ -102,46 +108,58 @@ class OrderResource extends JsonResource
             |--------------------------------------------------------------------------
             */
 
-            'items' => $this->whenLoaded(
+            'items' =>
 
-                'items',
+                $this->whenLoaded(
 
-                fn() =>
+                    'items',
 
-                $this->items->map(
+                    fn() =>
 
-                    function ($item) {
+                    $this->items->map(
 
-                        return [
+                        function ($item) {
 
-                            'product_name' =>
-                                $item->product_name,
+                            return [
 
-                            'variant' =>
-                                $item->variant_name,
+                                'product_name' =>
+                                    $item->product_name,
 
-                            'size' =>
-                                $item->size_value,
+                                'variant' =>
+                                    $item->variant_name,
 
-                            'quantity' =>
-                                $item->quantity,
+                                'size' =>
+                                    $item->size_value,
 
-                            'price' =>
-                                (float) 
-                                $item->price,
+                                'quantity' =>
+                                    $item->quantity,
 
-                            'subtotal' =>
+                                'price' =>
+                                    (float) $item->price,
 
-                                (float) (
+                                'subtotal' =>
 
-                                    $item->price *
+                                    (float) (
 
-                                    $item->quantity
-                                ),
-                        ];
-                    }
-                )
-            ),
+                                        $item->price *
+
+                                        $item->quantity
+                                    ),
+
+                                'image' =>
+
+                                    optional(
+
+                                        $item
+                                            ->variant
+                                            ?->images
+                                                ?->first()
+
+                                    )->image_path,
+                            ];
+                        }
+                    )
+                ),
 
 
             /*
@@ -233,6 +251,33 @@ class OrderResource extends JsonResource
 
             default =>
             'Bilinmiyor'
+        };
+    }
+
+
+    protected function getStatusStep(): int
+    {
+        return match ($this->status) {
+
+            'pending' => 1,
+
+            'approved' => 2,
+
+            'supplying' => 3,
+
+            'packaging' => 4,
+
+            'shipped' => 5,
+
+            'out_for_delivery' => 6,
+
+            'delivered' => 7,
+
+            'completed' => 8,
+
+            'cancelled' => 0,
+
+            default => 0
         };
     }
 }

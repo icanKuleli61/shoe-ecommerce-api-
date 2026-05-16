@@ -19,7 +19,8 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ColorController;
-
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\BannerController;
 
 
 
@@ -42,6 +43,18 @@ Route::post('/register', [AuthController::class, 'register']);
 | PUBLIC PRODUCT ROUTES
 |--------------------------------------------------------------------------
 */
+/*
+|--------------------------------------------------------------------------
+| BANNERS
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+
+    '/banners',
+
+    [BannerController::class, 'index']
+);
 
 Route::prefix('products')->group(function () {
 
@@ -139,6 +152,24 @@ Route::middleware('auth:api')->group(function () {
     });
 
 
+    Route::prefix('checkout')
+        ->group(function () {
+
+            Route::get(
+
+                '/validate',
+
+                [
+                    CheckoutController::class,
+                    'validateCart'
+                ]
+
+            );
+
+
+
+
+        });
 
 
     Route::get('/profile', [UserController::class, 'profile']);
@@ -152,6 +183,25 @@ Route::middleware('auth:api')->group(function () {
         '/verify-password',
         [UserController::class, 'verifyPassword']
     );
+
+    Route::prefix('wallet')->group(function () {
+
+        Route::get(
+
+            '/',
+
+            [WalletController::class, 'index']
+        );
+
+
+
+        Route::post(
+
+            '/deposit',
+
+            [WalletController::class, 'addBalance']
+        );
+    });
 
 
 
@@ -238,28 +288,35 @@ Route::middleware('auth:api')->group(function () {
 
     Route::prefix('orders')->group(function () {
 
-        Route::post('/', [OrderController::class, 'store']);
+        Route::post(
+            '/',
+            [OrderController::class, 'store']
+        );
 
-        Route::post('/{id}/pay', [OrderController::class, 'pay']);
+
+
+        Route::get(
+            '/',
+            [OrderController::class, 'index']
+        );
+
+        Route::get(
+            '/{id}/detail',
+            [OrderController::class, 'detail']
+        )->whereNumber('id');
+
+
+        Route::get(
+            '/{id}',
+            [OrderController::class, 'show']
+        )->whereNumber('id');
+
+        Route::patch(
+            '/{id}/cancel',
+            [OrderController::class, 'cancel']
+        )->whereNumber('id');
     });
-
-
-    Route::get(
-        '/wallet',
-        [WalletController::class, 'index']
-    );
-
-
-
-    Route::post(
-        '/wallet/add-balance',
-        [WalletController::class, 'addBalance']
-    );
-
-
-
 });
-
 
 
 
@@ -337,6 +394,28 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
         [CategoryController::class, 'destroy']
     );
 
+
+    /*
+|--------------------------------------------------------------------------
+| BANNERS
+|--------------------------------------------------------------------------
+*/
+
+    Route::post(
+
+        '/banners',
+
+        [BannerController::class, 'store']
+    );
+
+
+
+    Route::delete(
+
+        '/banners/{id}',
+
+        [BannerController::class, 'destroy']
+    );
 
 
     /*

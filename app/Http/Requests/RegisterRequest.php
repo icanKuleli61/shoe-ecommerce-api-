@@ -86,6 +86,24 @@ class RegisterRequest extends FormRequest
                 'string',
                 'max:50'
             ],
+
+            'full_name' => [
+
+                'nullable',
+
+                'string',
+
+                'max:100'
+            ],
+
+            'phone_override' => [
+
+                'nullable',
+
+                'string',
+
+                'max:20'
+            ],
         ];
     }
 
@@ -142,12 +160,20 @@ class RegisterRequest extends FormRequest
 
             'address.min' =>
                 'Adres en az 10 karakter olmalıdır.',
-                
+
             'title.required' =>
                 'Adres başlığı zorunludur.',
 
             'title.max' =>
                 'Adres başlığı en fazla 50 karakter olabilir.',
+
+            'full_name.max' =>
+
+                'Teslim alan kişi adı en fazla 100 karakter olabilir.',
+
+            'phone_override.max' =>
+
+                'Teslimat telefonu en fazla 20 karakter olabilir.',
         ];
     }
 }
