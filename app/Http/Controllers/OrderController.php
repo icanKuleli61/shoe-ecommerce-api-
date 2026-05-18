@@ -185,4 +185,25 @@ class OrderController extends Controller
                 )
         ]);
     }
+
+
+    public function complete($id)
+    {
+        $order =
+            $this->service
+                ->complete($id);
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Sipariş tamamlandı.',
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
+        ]);
+    }
 }

@@ -21,6 +21,7 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ColorController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\BannerController;
+use App\Http\Controllers\HomeController;
 
 
 
@@ -69,7 +70,36 @@ Route::prefix('products')->group(function () {
     Route::get('/{productId}/statistics', [ReviewController::class, 'statistics']);
 });
 
+Route::get(
+    '/banners',
+    [BannerController::class, 'index']
+);
 
+
+
+Route::prefix('home')
+
+    ->controller(
+        HomeController::class
+    )
+
+    ->group(function () {
+
+        Route::get(
+            '/best-sellers',
+            'bestSellers'
+        );
+
+        Route::get(
+            '/new-arrivals',
+            'newArrivals'
+        );
+
+        Route::get(
+            '/discounted-products',
+            'discountedProducts'
+        );
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -235,14 +265,24 @@ Route::middleware('auth:api')->group(function () {
     | FAVORITES
     |--------------------------------------------------------------------------
     */
+    Route::prefix('favorites')
 
-    Route::get('/favorites', [FavoriteController::class, 'index']);
+        ->controller(
+            FavoriteController::class
+        )
 
-    Route::post('/favorites/{productId}', [FavoriteController::class, 'toggle']);
+        ->group(function () {
 
+            Route::get(
+                '/',
+                'index'
+            );
 
-
-
+            Route::post(
+                '/toggle/{productId}',
+                'toggle'
+            );
+        });
 
     /*
     |--------------------------------------------------------------------------
@@ -305,6 +345,19 @@ Route::middleware('auth:api')->group(function () {
             [OrderController::class, 'detail']
         )->whereNumber('id');
 
+        Route::post(
+
+            '/{id}/cancel',
+
+            [OrderController::class, 'cancel']
+        );
+
+        Route::post(
+
+            '/{id}/complete',
+
+            [OrderController::class, 'complete']
+        );
 
         Route::get(
             '/{id}',
@@ -340,6 +393,23 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
     |--------------------------------------------------------------------------
     */
 
+    Route::get(
+        '/products',
+        [ProductController::class, 'adminIndex']
+    );
+
+    Route::get(
+        '/products/filter',
+        [ProductController::class, 'adminFilter']
+    );
+
+    Route::get(
+
+        '/products/{id}',
+
+        [ProductController::class, 'adminShow']
+    );
+
     Route::post('/products', [ProductController::class, 'store']);
 
     Route::patch('/products/{id}', [ProductController::class, 'update']);
@@ -347,8 +417,6 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
     Route::patch('/products/{id}/restore', [ProductController::class, 'restore']);
-
-
 
 
 
@@ -362,8 +430,16 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 
     Route::delete('/variants/{id}', [ProductVariantController::class, 'destroy']);
 
+    Route::patch(
+        '/variants/{id}',
+        [ProductVariantController::class, 'update']
+    );
+    Route::patch(
 
+        '/products/{id}/full-update',
 
+        [ProductController::class, 'adminUpdate']
+    );
 
 
     /*

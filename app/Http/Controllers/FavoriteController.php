@@ -2,35 +2,69 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Services\FavoriteService;
-use App\Http\Resources\ProductListResource;
+
+use App\Http\Resources\FavoriteResource;
 
 class FavoriteController extends Controller
 {
-    protected FavoriteService $service;
+    public function __construct(
 
-    public function __construct(FavoriteService $service){
-        $this->service = $service;
+        protected FavoriteService $service
+
+    ) {
     }
 
     public function toggle($productId)
     {
-        $result = $this->service->toggle($productId);
+        $result =
+
+            $this->service
+                ->toggle($productId);
 
         return response()->json([
+
             'success' => true,
-            'data' => $result
+
+            'data' =>
+                $result
         ]);
     }
 
     public function index()
     {
-        $products = $this->service->getUserFavorites();
+        $favorites =
+
+            $this->service
+                ->index();
 
         return response()->json([
+
             'success' => true,
-            'data' => ProductListResource::collection($products)
+
+            'data' =>
+
+                FavoriteResource::collection(
+                    $favorites
+                ),
+
+            'pagination' => [
+
+                'current_page' =>
+                    $favorites->currentPage(),
+
+                'last_page' =>
+                    $favorites->lastPage(),
+
+                'per_page' =>
+                    $favorites->perPage(),
+
+                'total' =>
+                    $favorites->total(),
+
+                'has_more_pages' =>
+                    $favorites->hasMorePages()
+            ]
         ]);
     }
 }

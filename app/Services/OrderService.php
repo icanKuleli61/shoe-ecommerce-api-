@@ -447,10 +447,6 @@ class OrderService
 
         $order->payment_status =
             Order::PAYMENT_STATUS_PAID;
-
-        $order->status =
-            Order::STATUS_APPROVED;
-
         $order->save();
     }
 
@@ -520,5 +516,199 @@ class OrderService
             )
             ->latest()
             ->paginate(10);
+    }
+
+
+    protected function validateCancelableOrder(
+        Order $order
+    ): void {
+
+        $cancelableStatuses = [
+
+            Order::STATUS_PENDING,
+
+            Order::STATUS_APPROVED,
+
+            Order::STATUS_SUPPLYING,
+
+            Order::STATUS_PACKAGING
+        ];
+
+        if (
+
+            !in_array(
+                $order->status,
+                $cancelableStatuses
+            )
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+
+        if (
+
+            $order->status ===
+            Order::STATUS_CANCELLED
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+    }
+
+
+    protected function restoreStocks(
+        Order $order
+    ): void {
+
+        foreach ($order->items as $item) {
+
+            VariantSize::find(
+                $item->size_id
+            )?->increment(
+
+                    'stock',
+
+                    $item->quantity
+                );
+        }
+    }
+
+
+    protected function refundWallet(
+        Order $order
+    ): void {
+
+        $wallet = auth()
+            ->user()
+            ->wallet;
+
+        if (!$wallet) {
+
+            return;
+        }
+
+        $wallet->increment(
+
+            'balance',
+
+            $order->total_price
+        );
+
+        WalletTransaction::create([
+
+            'wallet_id' =>
+                $wallet->id,
+
+            'type' =>
+                'refund',
+
+            'amount' =>
+                $order->total_price,
+
+            'current_balance' =>
+                $wallet->fresh()->balance,
+
+            'description' =>
+                'Sipariş iptal edildi. Ücret iadesi yapıldı.',
+
+            'reference_type' =>
+                'order',
+
+            'reference_id' =>
+                $order->id
+        ]);
+    }
+
+
+    protected function markAsCancelled(
+        Order $order
+    ): void {
+
+        $order->status =
+            Order::STATUS_CANCELLED;
+
+        $order->save();
+    }
+
+
+    public function cancel($id): Order
+    {
+        return DB::transaction(function () use ($id) {
+
+            $order = Order::with('items')
+                ->where(
+                    'user_id',
+                    auth()->id()
+                )
+                ->find($id);
+
+            if (!$order) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+            $this->validateCancelableOrder(
+                $order
+            );
+
+            $this->restoreStocks(
+                $order
+            );
+
+            $this->refundWallet(
+                $order
+            );
+
+            $this->markAsCancelled(
+                $order
+            );
+
+            return $order->fresh();
+        });
+    }
+
+
+    public function complete($id): Order
+    {
+        $order = Order::where(
+            'user_id',
+            auth()->id()
+        )
+            ->find($id);
+
+        if (!$order) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        if (
+
+            $order->status !==
+            Order::STATUS_DELIVERED
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+
+        $order->status =
+            Order::STATUS_COMPLETED;
+
+        $order->save();
+
+        return $order->fresh();
+
     }
 }

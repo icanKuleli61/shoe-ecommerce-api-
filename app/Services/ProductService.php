@@ -138,7 +138,11 @@ class ProductService
     public function index()
     {
         return Product::with([
+
+            'favorites',
+
             'variants.sizes',
+
             'variants.images'
         ])
             ->withAvg('reviews', 'rating')
@@ -150,8 +154,12 @@ class ProductService
     {
         return Product::with([
 
+            'favorites',
+
             'variants.images',
+
             'variants.color',
+
             'variants.sizes'
 
         ])
@@ -271,14 +279,25 @@ class ProductService
     private function baseQuery()
     {
         return Product::query()
+
             ->with([
-                'images',
+
+                'favorites',
+
+                'variants.images',
+
                 'variants.sizes',
             ])
-            ->withAvg('reviews', 'rating')
-            ->withCount('reviews');
-    }
 
+            ->withAvg(
+                'reviews',
+                'rating'
+            )
+
+            ->withCount(
+                'reviews'
+            );
+    }
     private function applySearch(
         $query,
         $filters
@@ -395,19 +414,27 @@ class ProductService
         $query,
         $filters
     ) {
+
         if (!empty($filters['size'])) {
+
             $sizes = explode(
                 ',',
                 $filters['size']
             );
+
             $query->whereHas(
-                'sizes',
+
+                'variants.sizes',
+
                 function ($q) use ($sizes) {
+
                     $q
+
                         ->whereIn(
                             'size',
                             $sizes
                         )
+
                         ->where(
                             'stock',
                             '>',
@@ -537,5 +564,647 @@ class ProductService
 
                 break;
         }
+    }
+
+
+    public function adminIndex()
+    {
+        return Product::withTrashed()
+
+            ->with([
+
+                'category',
+
+                'brand',
+
+                'variants.images',
+
+                'variants.sizes'
+
+            ])
+
+            ->latest()
+
+            ->paginate(10);
+    }
+
+    public function adminFilter(array $filters)
+    {
+        $query = Product::withTrashed()
+
+            ->with([
+
+                'category',
+
+                'brand',
+
+                'variants.images',
+
+                'variants.sizes'
+            ]);
+
+        if (!empty($filters['search'])) {
+
+            $search =
+                $filters['search'];
+
+
+
+            $query->where(
+
+                function ($q) use ($search) {
+
+                    $q->where(
+                        'name',
+                        'ILIKE',
+                        "%{$search}%"
+                    )
+
+                        ->orWhereHas(
+
+                            'brand',
+
+                            function ($brandQuery) use ($search) {
+
+                                $brandQuery->where(
+                                    'name',
+                                    'ILIKE',
+                                    "%{$search}%"
+                                );
+                            }
+                        );
+                }
+            );
+        }
+
+        if (!empty($filters['category_id'])) {
+
+            $query->where(
+                'category_id',
+                $filters['category_id']
+            );
+        }
+
+
+
+        return $query
+            ->latest()
+            ->paginate(10);
+    }
+
+    public function adminUpdate(
+        $id,
+        array $data
+    ) {
+
+        $product = Product::with([
+
+            'variants.images',
+
+            'variants.sizes'
+        ])
+
+            ->find($id);
+
+
+
+        if (!$product) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+
+
+        return DB::transaction(
+
+            function () use ($product, $data) {
+
+                $this->updateProduct(
+                    $product,
+                    $data
+                );
+
+
+
+                $this->syncVariants(
+                    $product,
+                    $data['variants']
+                );
+
+
+
+                return $product->fresh([
+
+                    'variants.images',
+
+                    'variants.sizes',
+
+                    'variants.color',
+
+                    'category',
+
+                    'brand'
+                ]);
+            }
+        );
+    }
+
+    private function updateProduct(
+        Product $product,
+        array $data
+    ): void {
+
+        $product->update([
+
+            'name' =>
+
+                $data['name'],
+
+            'description' =>
+
+                $data['description']
+                ?? null,
+
+            'category_id' =>
+
+                $data['category_id'],
+
+            'brand_id' =>
+
+                $data['brand_id'],
+
+            'gender' =>
+
+                $data['gender'],
+        ]);
+    }
+
+    private function syncVariants(
+        Product $product,
+        array $variants
+    ): void {
+
+        $existingVariantIds =
+
+            $product->variants
+
+                ->pluck('id')
+
+                ->toArray();
+
+
+
+        $incomingVariantIds =
+
+            collect($variants)
+
+                ->pluck('id')
+
+                ->filter()
+
+                ->toArray();
+
+
+
+        $deletedVariantIds =
+
+            array_diff(
+
+                $existingVariantIds,
+
+                $incomingVariantIds
+            );
+
+
+
+        ProductVariant::whereIn(
+
+            'id',
+
+            $deletedVariantIds
+
+        )->delete();
+
+
+
+        foreach (
+            $variants
+            as $variantData
+        ) {
+
+            $variant =
+                $this->upsertVariant(
+                    $product,
+                    $variantData
+                );
+
+
+
+            $this->syncSizes(
+                $variant,
+                $variantData['sizes']
+            );
+
+
+
+            $this->syncImages(
+
+                $variant,
+
+                $variantData['images']
+                ?? []
+            );
+        }
+    }
+    private function upsertVariant(
+        Product $product,
+        array $variantData
+    ): ProductVariant {
+
+        if (
+            !empty($variantData['id'])
+        ) {
+
+            $variant =
+                ProductVariant::find(
+                    $variantData['id']
+                );
+
+
+
+            if (!$variant) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+
+
+            $variant->update([
+
+                'name' =>
+
+                    $variantData['name'],
+
+                'color_id' =>
+
+                    $variantData['color_id'],
+            ]);
+
+
+
+            return $variant;
+        }
+
+
+
+        return ProductVariant::create([
+
+            'product_id' =>
+
+                $product->id,
+
+            'name' =>
+
+                $variantData['name'],
+
+            'color_id' =>
+
+                $variantData['color_id'],
+        ]);
+    }
+
+    private function syncSizes(
+        ProductVariant $variant,
+        array $sizes
+    ): void {
+
+        $existingSizeIds =
+
+            $variant->sizes
+
+                ->pluck('id')
+
+                ->toArray();
+
+
+
+        $incomingSizeIds =
+
+            collect($sizes)
+
+                ->pluck('id')
+
+                ->filter()
+
+                ->toArray();
+
+
+
+        $deletedSizeIds =
+
+            array_diff(
+
+                $existingSizeIds,
+
+                $incomingSizeIds
+            );
+
+
+
+        VariantSize::whereIn(
+
+            'id',
+
+            $deletedSizeIds
+
+        )->delete();
+
+
+
+        foreach (
+            $sizes
+            as $sizeData
+        ) {
+
+            $this->upsertSize(
+                $variant,
+                $sizeData
+            );
+        }
+    }
+
+    private function upsertSize(
+        ProductVariant $variant,
+        array $sizeData
+    ): void {
+
+        if (
+            !empty($sizeData['id'])
+        ) {
+
+            $size =
+                VariantSize::find(
+                    $sizeData['id']
+                );
+
+
+
+            if (!$size) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+
+
+            $size->update([
+
+                'size' =>
+
+                    $sizeData['size'],
+
+                'stock' =>
+
+                    $sizeData['stock'],
+
+                'price' =>
+
+                    $sizeData['price'],
+            ]);
+
+
+
+            return;
+        }
+
+
+
+        VariantSize::create([
+
+            'variant_id' =>
+
+                $variant->id,
+
+            'size' =>
+
+                $sizeData['size'],
+
+            'stock' =>
+
+                $sizeData['stock'],
+
+            'price' =>
+
+                $sizeData['price'],
+        ]);
+    }
+
+    private function syncImages(
+        ProductVariant $variant,
+        array $images = []
+    ): void {
+
+        $existingImageIds =
+
+            $variant->images
+
+                ->pluck('id')
+
+                ->toArray();
+
+
+
+        $incomingImageIds =
+
+            collect($images)
+
+                ->pluck('id')
+
+                ->filter()
+
+                ->toArray();
+
+
+
+        $deletedImageIds =
+
+            array_diff(
+
+                $existingImageIds,
+
+                $incomingImageIds
+            );
+
+
+
+        $deletedImages = ProductImage::whereIn(
+
+            'id',
+
+            $deletedImageIds
+
+        )->get();
+
+
+
+        foreach (
+            $deletedImages
+            as $deletedImage
+        ) {
+
+            $imagePath = storage_path(
+
+                'app/public/' .
+                $deletedImage->image_path
+            );
+
+
+
+            if (
+                file_exists($imagePath)
+            ) {
+
+                unlink($imagePath);
+            }
+
+
+
+            $deletedImage->delete();
+        }
+
+
+
+        foreach (
+            $images
+            as $imageData
+        ) {
+
+            $this->upsertImage(
+                $variant,
+                $imageData
+            );
+        }
+    }
+    private function upsertImage(
+        ProductVariant $variant,
+        array $imageData
+    ): void {
+
+        if (
+            !empty($imageData['id'])
+        ) {
+
+            $image =
+                ProductImage::find(
+                    $imageData['id']
+                );
+
+
+
+            if (!$image) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+
+
+            $image->update([
+
+                'is_main' =>
+
+                    $imageData['is_main']
+                    ?? false,
+
+                'order' =>
+
+                    $imageData['order']
+                    ?? 0,
+            ]);
+
+
+
+            return;
+        }
+
+
+
+        if (
+            empty($imageData['file'])
+        ) {
+
+            return;
+        }
+
+
+
+        $path = $imageData['file']
+
+            ->store(
+                'products',
+                'public'
+            );
+
+
+
+        ProductImage::create([
+
+            'variant_id' =>
+
+                $variant->id,
+
+            'image_path' =>
+
+                $path,
+
+            'is_main' =>
+
+                $imageData['is_main']
+                ?? false,
+
+            'order' =>
+
+                $imageData['order']
+                ?? 0,
+        ]);
+    }
+
+
+
+    public function adminShow($id)
+    {
+        $product = Product::with([
+
+            'category',
+
+            'brand',
+
+            'variants.color',
+
+            'variants.images',
+
+            'variants.sizes'
+        ])
+
+            ->find($id);
+
+
+
+        if (!$product) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+
+
+        return $product;
     }
 }

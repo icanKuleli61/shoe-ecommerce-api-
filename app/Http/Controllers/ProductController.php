@@ -10,7 +10,8 @@ use App\Http\Resources\ProductListResource;
 use App\Http\Resources\ProductDetailResource;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Requests\FilterProductRequest;
-
+use App\Http\Resources\AdminProductListResource;
+use App\Http\Requests\UpdateFullProductRequest;
 
 
 class ProductController extends Controller
@@ -103,5 +104,116 @@ class ProductController extends Controller
         return ProductListResource::collection(
             $products
         );
+    }
+
+    public function adminIndex()
+    {
+        $products =
+            $this->service->adminIndex();
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' => AdminProductListResource::collection(
+                $products
+            ),
+
+            'meta' => [
+
+                'current_page' =>
+                    $products->currentPage(),
+
+                'last_page' =>
+                    $products->lastPage(),
+
+                'per_page' =>
+                    $products->perPage(),
+
+                'total' =>
+                    $products->total(),
+            ]
+        ]);
+    }
+
+    public function adminFilter(
+        FilterProductRequest $request
+    ) {
+
+        $products =
+
+            $this->service->adminFilter(
+                $request->validated()
+            );
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' => AdminProductListResource::collection(
+                $products
+            ),
+
+            'meta' => [
+
+                'current_page' =>
+                    $products->currentPage(),
+
+                'last_page' =>
+                    $products->lastPage(),
+
+                'per_page' =>
+                    $products->perPage(),
+
+                'total' =>
+                    $products->total(),
+            ]
+        ]);
+    }
+
+    public function adminUpdate(
+        UpdateFullProductRequest $request,
+        $id
+    ) {
+
+        $product =
+
+            $this->service->adminUpdate(
+
+                $id,
+
+                $request->validated()
+            );
+
+
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+
+                'Ürün güncellendi',
+
+            'data' => new ProductDetailResource(
+                $product
+            )
+        ]);
+    }
+
+    public function adminShow($id)
+    {
+        $product =
+
+            $this->service->adminShow($id);
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' => new ProductDetailResource(
+                $product
+            )
+        ]);
     }
 }

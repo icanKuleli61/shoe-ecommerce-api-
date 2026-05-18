@@ -54,6 +54,7 @@ enum ErrorCode: string
 
     case INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE';
 
+    case BAD_REQUEST = 'BAD_REQUEST';
 
     public function message(): string
     {
@@ -147,6 +148,8 @@ enum ErrorCode: string
             self::INVALID_AMOUNT => 'Geçersiz bakiye miktarı',
 
             self::SOMETHING_WENT_WRONG => 'Bir hata oluştu.',
+
+            ErrorCode::BAD_REQUEST => 'Geçersiz işlem.',
         };
     }
 
@@ -202,6 +205,8 @@ enum ErrorCode: string
 
             self::INVALID_AMOUNT => 422,
             self::SOMETHING_WENT_WRONG => 422,
+
+            ErrorCode::BAD_REQUEST => 422,
         };
     }
 }

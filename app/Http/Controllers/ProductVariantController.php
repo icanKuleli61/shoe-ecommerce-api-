@@ -6,13 +6,15 @@ use Illuminate\Http\Request;
 use App\Services\ProductVariantService;
 use App\Http\Requests\StoreProductVariantRequest;
 use App\Http\Resources\ProductVariantResource;
+use App\Http\Requests\UpdateProductVariantRequest;
 
 
 class ProductVariantController extends Controller
 {
     protected ProductVariantService $service;
 
-    public function __construct(ProductVariantService $service){
+    public function __construct(ProductVariantService $service)
+    {
 
         $this->service = $service;
     }
@@ -39,6 +41,26 @@ class ProductVariantController extends Controller
         ]);
     }
 
+    public function update(
+        UpdateProductVariantRequest $request,
+        $id
+    ) {
+        $variant =
 
+            $this->service->update(
+                $id,
+
+                $request->validated()
+            );
+
+        return response()->json([
+            'success' => true,
+            'message' =>
+                'Varyant güncellendi',
+            'data' => new ProductVariantResource(
+                $variant
+            )
+        ]);
+    }
 
 }
