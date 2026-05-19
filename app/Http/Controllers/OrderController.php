@@ -10,6 +10,8 @@ use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\OrderListResource;
 use App\Http\Resources\OrderDetailResource;
+use App\Http\Requests\AdminOrderFilterRequest;
+
 
 class OrderController extends Controller
 {
@@ -199,6 +201,83 @@ class OrderController extends Controller
 
             'message' =>
                 'Sipariş tamamlandı.',
+
+            'data' =>
+                new OrderResource(
+                    $order
+                )
+        ]);
+    }
+
+
+
+    public function adminIndex(
+
+        AdminOrderFilterRequest $request
+
+    ) {
+        $orders =
+
+            $this->service
+                ->adminIndex(
+                    $request->validated()
+                );
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' =>
+
+                OrderListResource::collection(
+                    $orders
+                )
+        ]);
+    }
+
+
+    public function adminShow($id)
+    {
+        $order =
+            $this->service
+                ->adminShow($id);
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' =>
+
+                new OrderDetailResource(
+                    $order
+                )
+        ]);
+    }
+
+    public function adminUpdateStatus(
+
+        UpdateOrderStatusRequest $request,
+
+        $id
+
+    ) {
+
+        $order =
+
+            $this->service
+                ->adminUpdateStatus(
+
+                    $id,
+
+                    $request->validated()['status']
+                );
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Sipariş durumu güncellendi.',
 
             'data' =>
                 new OrderResource(

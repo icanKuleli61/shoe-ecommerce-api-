@@ -2,16 +2,11 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProductVariantRequest
     extends FormRequest
 {
-    /**
-     * Determine if the user is authorized
-     * to make this request.
-     */
     public function authorize(): bool
     {
         return true;
@@ -35,6 +30,8 @@ class UpdateProductVariantRequest
             'color_id' => [
 
                 'required',
+
+                'integer',
 
                 'exists:colors,id'
             ],
@@ -65,9 +62,13 @@ class UpdateProductVariantRequest
 
                 'Renk seçmelisin',
 
+            'color_id.integer' =>
+
+                'Geçersiz renk',
+
             'color_id.exists' =>
 
-                'Geçersiz renk seçildi',
+                'Seçilen renk bulunamadı',
         ];
     }
 }

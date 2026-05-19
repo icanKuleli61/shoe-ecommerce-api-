@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Banner;
-use Illuminate\Http\Request;
+
 use Illuminate\Support\Facades\Storage;
+
 use App\Exceptions\BaseException;
+
 use App\Enums\ErrorCode;
 
 class BannerService
@@ -23,39 +25,157 @@ class BannerService
     }
 
 
+    public function adminIndex()
+    {
+        return Banner::orderBy(
+            'sort_order'
+        )->get();
+    }
+
 
     public function store(
-        Request $request
+        array $data
     ) {
 
-        $this->validateStore(
-            $request
-        );
+        $data['image'] =
 
-
-
-        $imagePath = $this->uploadImage(
-            $request
-        );
+            $this->uploadImage(
+                $data['image']
+            );
 
 
 
         return Banner::create([
 
             'title' =>
-                $request->title,
+
+                $data['title']
+                ?? null,
 
             'image' =>
-                $imagePath,
+
+                $data['image'],
 
             'sort_order' =>
-                $request->sort_order ?? 0,
+
+                (Banner::max('sort_order') ?? 0) + 1,
 
             'is_active' =>
-                $request->is_active ?? true,
+
+                $data['is_active']
+                ?? true,
         ]);
     }
 
+
+    public function update(
+        array $data,
+        $id
+    ) {
+
+        $banner = Banner::find($id);
+
+        if (!$banner) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+
+        if (isset($data['sort_order'])) {
+
+            $oldOrder =
+                $banner->sort_order;
+
+            $newOrder =
+                (int) $data['sort_order'];
+            $maxOrder = Banner::count();
+
+            if ($newOrder < 1) {
+
+                $newOrder = 1;
+            }
+
+            if ($newOrder > $maxOrder) {
+
+                $newOrder = $maxOrder;
+            }
+
+
+            if ($newOrder > $oldOrder) {
+
+                Banner::where(
+
+                    'sort_order',
+                    '>',
+                    $oldOrder
+
+                )
+                    ->where(
+
+                        'sort_order',
+                        '<=',
+                        $newOrder
+
+                    )
+                    ->decrement(
+                        'sort_order'
+                    );
+
+            } elseif ($newOrder < $oldOrder) {
+
+                Banner::where(
+
+                    'sort_order',
+                    '>=',
+                    $newOrder
+
+                )
+                    ->where(
+
+                        'sort_order',
+                        '<',
+                        $oldOrder
+
+                    )
+                    ->increment(
+                        'sort_order'
+                    );
+            }
+        }
+
+        if (!empty($data['image'])) {
+
+            $this->replaceImage(
+                $banner,
+                $data['image']
+            );
+        }
+
+
+        $banner->update([
+
+            'title' =>
+
+                $data['title']
+                ?? $banner->title,
+
+            'sort_order' =>
+
+                $newOrder
+                ?? $banner->sort_order,
+
+            'is_active' =>
+
+                $data['is_active']
+                ?? $banner->is_active,
+        ]);
+
+
+
+        return $banner;
+    }
 
 
     public function destroy($id)
@@ -69,7 +189,50 @@ class BannerService
             );
         }
 
+        if (
 
+            $banner->image
+
+            &&
+
+            Storage::disk('public')
+                ->exists($banner->image)
+        ) {
+
+            Storage::disk('public')
+                ->delete($banner->image);
+        }
+
+        Banner::where(
+
+            'sort_order',
+            '>',
+            $banner->sort_order
+
+        )->decrement(
+                'sort_order'
+            );
+
+
+        $banner->delete();
+    }
+
+
+    private function uploadImage(
+        $image
+    ): string {
+
+        return $image->store(
+            'banners',
+            'public'
+        );
+    }
+
+
+    private function replaceImage(
+        Banner $banner,
+        $image
+    ): void {
 
         if (
 
@@ -87,54 +250,14 @@ class BannerService
 
 
 
-        $banner->delete();
-    }
+        $banner->image =
 
-
-
-    private function validateStore(
-        Request $request
-    ) {
-
-        $request->validate([
-
-            'title' => [
-
-                'nullable',
-                'string'
-            ],
-
-            'image' => [
-
-                'required',
-                'image'
-            ],
-
-            'sort_order' => [
-
-                'nullable',
-                'integer'
-            ],
-
-            'is_active' => [
-
-                'nullable',
-                'boolean'
-            ]
-        ]);
-    }
-
-
-
-    private function uploadImage(
-        Request $request
-    ) {
-
-        return $request
-            ->file('image')
-            ->store(
-                'banners',
-                'public'
+            $this->uploadImage(
+                $image
             );
+
+
+
+        $banner->save();
     }
 }

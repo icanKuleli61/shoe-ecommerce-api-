@@ -584,9 +584,9 @@ class OrderService
         Order $order
     ): void {
 
-        $wallet = auth()
-            ->user()
-            ->wallet;
+        $wallet =
+            $order->user
+                    ?->wallet;
 
         if (!$wallet) {
 
@@ -710,5 +710,180 @@ class OrderService
 
         return $order->fresh();
 
+    }
+
+    public function adminIndex(array $filters)
+    {
+        $query = Order::with([
+
+            'items.variant.images',
+            'user'
+
+        ])
+            ->withCount('items');
+
+
+        if (!empty($filters['search'])) {
+
+            $search =
+                $filters['search'];
+
+
+
+            $query->where(function ($q) use ($search) {
+
+
+                $q->where(
+                    'id',
+                    'like',
+                    "%{$search}%"
+                )
+
+                    ->orWhereHas('user', function ($user) use ($search) {
+
+                        $user->where(
+
+                            'email',
+                            'like',
+                            "%{$search}%"
+                        );
+                    });
+            });
+        }
+
+        if (!empty($filters['status'])) {
+
+            $query->where(
+
+                'status',
+
+                $filters['status']
+            );
+        }
+
+        return $query
+            ->latest()
+            ->paginate(20);
+    }
+
+
+
+    public function adminShow($id): Order
+    {
+        $order = Order::with([
+
+            'items.variant.images',
+            'user'
+
+        ])->find($id);
+
+        if (!$order) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        return $order;
+    }
+
+
+    public function adminUpdateStatus(
+        $id,
+        string $status
+    ): Order {
+
+        return DB::transaction(
+
+            function () use ($id, $status) {
+
+                $order = Order::with([
+
+                    'items',
+                    'user.wallet'
+
+                ])->find($id);
+
+
+
+                if (!$order) {
+
+                    throw new BaseException(
+                        ErrorCode::NOT_FOUND
+                    );
+                }
+
+
+
+                $allowedTransitions =
+
+                    Order::$statusFlow[
+                        $order->status
+                    ];
+
+
+
+                if (
+
+                    !in_array(
+                        $status,
+                        $allowedTransitions
+                    )
+
+                ) {
+
+                    throw new BaseException(
+
+                        ErrorCode::BAD_REQUEST
+                    );
+                }
+
+
+
+                if (
+
+                    $status ===
+                    Order::STATUS_CANCELLED
+
+                ) {
+
+                    $this->validateCancelableOrder(
+                        $order
+                    );
+
+
+
+                    $this->restoreStocks(
+                        $order
+                    );
+
+
+
+                    $this->refundWallet(
+                        $order
+                    );
+
+
+
+                    $this->markAsCancelled(
+                        $order
+                    );
+
+
+
+                    return $order->fresh();
+                }
+
+
+
+                $order->status = $status;
+
+                $order->save();
+
+
+
+                return $order->fresh();
+            }
+        );
     }
 }

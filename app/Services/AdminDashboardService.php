@@ -16,16 +16,28 @@ class AdminDashboardService
     public function index()
     {
         $latestOrders = Order::latest()
+
             ->take(5)
-            ->get();
+
+            ->get()
+
+            ->map(function ($order) {
+
+                $order->order_no =
+                    'SNK-' .
+                    $order->created_at->format('Y') .
+                    '-' .
+                    str_pad($order->id, 5, '0', STR_PAD_LEFT);
+
+                return $order;
+            });
 
 
 
         $monthlyRevenue = Order::whereMonth(
             'created_at',
             now()->month
-        )
-            ->sum('total_price');
+        )->sum('total_price');
 
 
 

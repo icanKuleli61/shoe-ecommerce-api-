@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
 use App\Services\BannerService;
 
 use App\Http\Resources\BannerResource;
+
+use App\Http\Requests\StoreBannerRequest;
+
+use App\Http\Requests\UpdateBannerRequest;
 
 class BannerController extends Controller
 {
@@ -39,16 +41,43 @@ class BannerController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+
+    public function adminIndex()
     {
-        $banner =
+        $banners =
 
             $this->service
-                ->store($request);
+                ->adminIndex();
 
         return response()->json([
 
             'success' => true,
+
+            'data' => BannerResource::collection(
+                $banners
+            )
+        ]);
+    }
+
+
+    public function store(
+        StoreBannerRequest $request
+    ) {
+
+        $banner =
+
+            $this->service
+                ->store(
+                    $request->validated()
+                );
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+
+                'Banner oluşturuldu',
 
             'data' =>
 
@@ -57,6 +86,35 @@ class BannerController extends Controller
                 )
         ]);
     }
+
+
+    public function update(
+        UpdateBannerRequest $request,
+        $id
+    ) {
+
+        $banner =
+
+            $this->service
+                ->update(
+                    $request->validated(),
+                    $id
+                );
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+
+                'Banner güncellendi',
+
+            'data' => new BannerResource(
+                $banner
+            )
+        ]);
+    }
+
 
     public function destroy($id)
     {

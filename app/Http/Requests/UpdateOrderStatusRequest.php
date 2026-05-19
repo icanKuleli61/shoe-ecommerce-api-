@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateOrderStatusRequest extends FormRequest
@@ -12,26 +11,40 @@ class UpdateOrderStatusRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-    return [
-            'status' => ['required', 'string', 'in:pending,paid,shipped,completed,cancelled'],
+        return [
+
+            'status' => [
+
+                'required',
+
+                'string',
+
+                'in:pending,approved,supplying,packaging,shipped,out_for_delivery,delivered,completed,cancelled'
+
+            ],
+
         ];
     }
 
+    /**
+     * Custom messages
+     */
     public function messages(): array
     {
         return [
+
             'status.required' => 'Status zorunlu',
+
             'status.in' => 'Geçersiz status değeri',
+
         ];
     }
 }

@@ -19,6 +19,7 @@ class ProductDetailResource extends JsonResource
             'id' => $this->id,
 
             'name' => $this->name,
+
             'brand_id' => $this->brand_id,
 
             'category_id' => $this->category_id,
@@ -33,18 +34,27 @@ class ProductDetailResource extends JsonResource
 
             'brand' => $this->brand?->name,
 
-            'images' => $this->images->map(function ($image) {
 
-                return [
+            'images' => $this->images
+                ->sortBy('order')
+                ->values()
+                ->map(function ($image) {
 
-                    'url' => asset(
-                        'storage/' .
-                        $image->image_path
-                    ),
+                    return [
 
-                    'is_main' => $image->is_main
-                ];
-            }),
+                        'id' => $image->id,
+
+                        'url' => asset(
+                            'storage/' .
+                            $image->image_path
+                        ),
+
+                        'is_main' => $image->is_main,
+
+                        'order' => $image->order
+                    ];
+                }),
+
 
             'variants' => $this->variants->map(function ($variant) {
 
@@ -59,7 +69,10 @@ class ProductDetailResource extends JsonResource
                     'color' => $variant->color?->name,
 
                     'images' => ProductImageResource::collection(
+
                         $variant->images
+                            ->sortBy('order')
+                            ->values()
                     ),
 
                     'sizes' => $variant->sizes->map(function ($size) {

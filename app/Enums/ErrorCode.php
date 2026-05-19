@@ -7,6 +7,7 @@ enum ErrorCode: string
     // AUTH
     case UNAUTHORIZED = 'UNAUTHORIZED';
     case INVALID_CREDENTIALS = 'INVALID_CREDENTIALS';
+    case ACCOUNT_DISABLED = 'ACCOUNT_DISABLED';
     case FORBIDDEN = 'FORBIDDEN';
 
     // VALIDATION
@@ -49,8 +50,8 @@ enum ErrorCode: string
 
 
     case INVALID_AMOUNT = 'INVALID_AMOUNT';
-    
-    case SOMETHING_WENT_WRONG  = 'SOMETHING_WENT_WRONG';
+
+    case SOMETHING_WENT_WRONG = 'SOMETHING_WENT_WRONG';
 
     case INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE';
 
@@ -66,6 +67,10 @@ enum ErrorCode: string
 
             self::INVALID_CREDENTIALS =>
             'Email veya şifre hatalı.',
+
+            self::ACCOUNT_DISABLED =>
+
+            'Hesabınız yönetici tarafından geçici olarak engellenmiştir. Lütfen destek ile iletişime geçin.',
 
             self::FORBIDDEN =>
             'Bu ürünü satın almadan yorum yapamazsınız.',
@@ -160,7 +165,9 @@ enum ErrorCode: string
                 // AUTH
             self::UNAUTHORIZED => 401,
             self::INVALID_CREDENTIALS => 401,
+            self::ACCOUNT_DISABLED => 403,
             self::FORBIDDEN => 403,
+            
 
                 // VALIDATION
             self::VALIDATION_ERROR => 422,
@@ -174,7 +181,7 @@ enum ErrorCode: string
 
                 // ADDRESS
             self::ADDRESS_NOT_FOUND => 404,
-            self::LAST_ADDRESS_CANNOT_DELETE =>404,
+            self::LAST_ADDRESS_CANNOT_DELETE => 404,
 
 
                 // PRODUCT
@@ -187,7 +194,7 @@ enum ErrorCode: string
                 // CART
             self::CART_EMPTY => 400,
             self::INSUFFICIENT_BALANCE => 400,
-            
+
             self::CART_ITEM_NOT_FOUND => 404,
             self::INSUFFICIENT_STOCK => 409,
 

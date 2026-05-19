@@ -687,6 +687,10 @@ class ProductService
                 );
 
 
+                $this->handleDeletes(
+                    $data
+                );
+
 
                 $this->syncVariants(
                     $product,
@@ -722,6 +726,12 @@ class ProductService
 
                 $data['name'],
 
+            'slug' =>
+
+                Str::slug(
+                    $data['name']
+                ) . '-' . $product->id,
+
             'description' =>
 
                 $data['description']
@@ -746,49 +756,6 @@ class ProductService
         array $variants
     ): void {
 
-        $existingVariantIds =
-
-            $product->variants
-
-                ->pluck('id')
-
-                ->toArray();
-
-
-
-        $incomingVariantIds =
-
-            collect($variants)
-
-                ->pluck('id')
-
-                ->filter()
-
-                ->toArray();
-
-
-
-        $deletedVariantIds =
-
-            array_diff(
-
-                $existingVariantIds,
-
-                $incomingVariantIds
-            );
-
-
-
-        ProductVariant::whereIn(
-
-            'id',
-
-            $deletedVariantIds
-
-        )->delete();
-
-
-
         foreach (
             $variants
             as $variantData
@@ -800,14 +767,13 @@ class ProductService
                     $variantData
                 );
 
-
-
             $this->syncSizes(
+
                 $variant,
+
                 $variantData['sizes']
+                ?? []
             );
-
-
 
             $this->syncImages(
 
@@ -828,9 +794,22 @@ class ProductService
         ) {
 
             $variant =
-                ProductVariant::find(
+                ProductVariant::where(
+
+                    'id',
+
                     $variantData['id']
-                );
+
+                )
+
+                    ->where(
+
+                        'product_id',
+
+                        $product->id
+                    )
+
+                    ->first();
 
 
 
@@ -882,49 +861,6 @@ class ProductService
         array $sizes
     ): void {
 
-        $existingSizeIds =
-
-            $variant->sizes
-
-                ->pluck('id')
-
-                ->toArray();
-
-
-
-        $incomingSizeIds =
-
-            collect($sizes)
-
-                ->pluck('id')
-
-                ->filter()
-
-                ->toArray();
-
-
-
-        $deletedSizeIds =
-
-            array_diff(
-
-                $existingSizeIds,
-
-                $incomingSizeIds
-            );
-
-
-
-        VariantSize::whereIn(
-
-            'id',
-
-            $deletedSizeIds
-
-        )->delete();
-
-
-
         foreach (
             $sizes
             as $sizeData
@@ -936,7 +872,6 @@ class ProductService
             );
         }
     }
-
     private function upsertSize(
         ProductVariant $variant,
         array $sizeData
@@ -947,9 +882,22 @@ class ProductService
         ) {
 
             $size =
-                VariantSize::find(
+                VariantSize::where(
+
+                    'id',
+
                     $sizeData['id']
-                );
+
+                )
+
+                    ->where(
+
+                        'variant_id',
+
+                        $variant->id
+                    )
+
+                    ->first();
 
 
 
@@ -1009,76 +957,6 @@ class ProductService
         array $images = []
     ): void {
 
-        $existingImageIds =
-
-            $variant->images
-
-                ->pluck('id')
-
-                ->toArray();
-
-
-
-        $incomingImageIds =
-
-            collect($images)
-
-                ->pluck('id')
-
-                ->filter()
-
-                ->toArray();
-
-
-
-        $deletedImageIds =
-
-            array_diff(
-
-                $existingImageIds,
-
-                $incomingImageIds
-            );
-
-
-
-        $deletedImages = ProductImage::whereIn(
-
-            'id',
-
-            $deletedImageIds
-
-        )->get();
-
-
-
-        foreach (
-            $deletedImages
-            as $deletedImage
-        ) {
-
-            $imagePath = storage_path(
-
-                'app/public/' .
-                $deletedImage->image_path
-            );
-
-
-
-            if (
-                file_exists($imagePath)
-            ) {
-
-                unlink($imagePath);
-            }
-
-
-
-            $deletedImage->delete();
-        }
-
-
-
         foreach (
             $images
             as $imageData
@@ -1100,9 +978,22 @@ class ProductService
         ) {
 
             $image =
-                ProductImage::find(
+                ProductImage::where(
+
+                    'id',
+
                     $imageData['id']
-                );
+
+                )
+
+                    ->where(
+
+                        'variant_id',
+
+                        $variant->id
+                    )
+
+                    ->first();
 
 
 
@@ -1175,8 +1066,131 @@ class ProductService
         ]);
     }
 
+    private function handleDeletes(
+        array $data
+    ): void {
+
+        if (
+            !empty($data['deleted_images'])
+        ) {
+
+            $images = ProductImage::whereIn(
+
+                'id',
+
+                $data['deleted_images']
+
+            )->get();
 
 
+
+            foreach (
+                $images
+                as $image
+            ) {
+
+                $imagePath = storage_path(
+
+                    'app/public/' .
+                    $image->image_path
+                );
+
+
+
+                if (
+                    file_exists($imagePath)
+                ) {
+
+                    unlink($imagePath);
+                }
+
+
+
+                $image->delete();
+            }
+        }
+
+
+
+        if (
+            !empty($data['deleted_sizes'])
+        ) {
+
+            VariantSize::whereIn(
+
+                'id',
+
+                $data['deleted_sizes']
+
+            )->delete();
+        }
+
+
+
+        if (
+            !empty($data['deleted_variants'])
+        ) {
+
+            foreach (
+
+                $data['deleted_variants']
+
+                as $variantId
+            ) {
+
+                $variant = ProductVariant::with([
+
+                    'images',
+                    'sizes'
+
+                ])->find($variantId);
+
+
+
+                if (!$variant) {
+
+                    continue;
+                }
+
+
+
+                foreach (
+                    $variant->images
+                    as $image
+                ) {
+
+                    /** @var ProductImage $image */
+
+                    $imagePath = storage_path(
+
+                        'app/public/' .
+                        $image->image_path
+                    );
+
+
+
+                    if (
+                        file_exists($imagePath)
+                    ) {
+
+                        unlink($imagePath);
+                    }
+
+
+
+                    $image->delete();
+                }
+
+
+
+                $variant->sizes()->delete();
+
+                $variant->delete();
+            }
+        }
+    }
+
+    
     public function adminShow($id)
     {
         $product = Product::with([
@@ -1185,11 +1199,22 @@ class ProductService
 
             'brand',
 
+            'variants' => function ($query) {
+
+                $query->orderBy('id');
+            },
+
             'variants.color',
 
-            'variants.images',
+            'variants.images' => function ($query) {
 
-            'variants.sizes'
+                $query->orderBy('order');
+            },
+
+            'variants.sizes' => function ($query) {
+
+                $query->orderBy('size');
+            }
         ])
 
             ->find($id);

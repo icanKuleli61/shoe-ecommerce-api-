@@ -18,6 +18,10 @@ class OrderListResource extends JsonResource
 
             'id' => $this->id,
 
+            'user_email' =>
+
+                $this->user?->email,
+
             'order_no' =>
 
                 'SNK-' .
@@ -36,6 +40,8 @@ class OrderListResource extends JsonResource
             'total_price' =>
 
                 (float) $this->total_price,
+
+
 
             'status' =>
 

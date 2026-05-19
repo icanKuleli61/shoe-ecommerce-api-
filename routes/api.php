@@ -418,8 +418,34 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 
     Route::patch('/products/{id}/restore', [ProductController::class, 'restore']);
 
+    /*
+    |--------------------------------------------------------------------------
+    | ORDERS
+    |--------------------------------------------------------------------------
+    */
 
+    Route::get(
 
+        '/orders',
+
+        [OrderController::class, 'adminIndex']
+    );
+
+    Route::get(
+
+        '/orders/{id}',
+
+        [OrderController::class, 'adminShow']
+    );
+
+    Route::match(
+
+        ['PATCH', 'POST'],
+
+        '/orders/{id}/status',
+
+        [OrderController::class, 'adminUpdateStatus']
+    );
     /*
     |--------------------------------------------------------------------------
     | VARIANTS
@@ -476,6 +502,12 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 | BANNERS
 |--------------------------------------------------------------------------
 */
+    Route::get(
+
+        '/banners',
+
+        [BannerController::class, 'adminIndex']
+    );
 
     Route::post(
 
@@ -484,7 +516,12 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
         [BannerController::class, 'store']
     );
 
+    Route::patch(
 
+        '/banners/{id}',
+
+        [BannerController::class, 'update']
+    );
 
     Route::delete(
 
@@ -492,8 +529,6 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 
         [BannerController::class, 'destroy']
     );
-
-
     /*
     |--------------------------------------------------------------------------
     | BRAND

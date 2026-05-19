@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-
     const STATUS_PENDING = 'pending';
 
     const STATUS_APPROVED = 'approved';
@@ -25,9 +24,13 @@ class Order extends Model
 
     const STATUS_CANCELLED = 'cancelled';
 
+
+
     const PAYMENT_METHOD_CARD = 'card';
 
     const PAYMENT_METHOD_WALLET = 'wallet';
+
+
 
     const PAYMENT_STATUS_PENDING = 'pending';
 
@@ -35,7 +38,52 @@ class Order extends Model
 
     const PAYMENT_STATUS_FAILED = 'failed';
 
+
+
+    public static array $statusFlow = [
+
+        'pending' => [
+            'approved',
+            'cancelled'
+        ],
+
+        'approved' => [
+            'supplying',
+            'cancelled'
+        ],
+
+        'supplying' => [
+            'packaging',
+            'cancelled'
+        ],
+
+        'packaging' => [
+            'shipped',
+            'cancelled'
+        ],
+
+        'shipped' => [
+            'out_for_delivery'
+        ],
+
+        'out_for_delivery' => [
+            'delivered'
+        ],
+
+        'delivered' => [
+            'completed'
+        ],
+
+        'completed' => [],
+
+        'cancelled' => [],
+    ];
+
+
+
     protected $table = 'orders';
+
+
 
     protected $fillable = [
 
@@ -68,6 +116,8 @@ class Order extends Model
         'address_text'
     ];
 
+
+
     protected $casts = [
 
         'subtotal' => 'float',
@@ -77,10 +127,14 @@ class Order extends Model
         'total_price' => 'float',
     ];
 
+
+
     public function isStatus($status)
     {
         return $this->status === $status;
     }
+
+
 
     public function user()
     {
@@ -89,12 +143,16 @@ class Order extends Model
         );
     }
 
+
+
     public function address()
     {
         return $this->belongsTo(
             \App\Models\Address::class
         );
     }
+
+
 
     public function items()
     {
