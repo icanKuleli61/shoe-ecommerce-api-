@@ -21,7 +21,16 @@ class ProductResource extends JsonResource
 
             'category' => $this->category?->name,
             'brand' => $this->brand?->name,
+            'reviews_avg_rating' =>
 
+                round(
+                    $this->reviews_avg_rating ?? 0,
+                    1
+                ),
+
+            'reviews_count' =>
+
+                $this->reviews_count ?? 0,
             'variants' => $this->variants->map(function ($variant) {
                 return [
                     'color' => $variant->color?->name,
@@ -35,7 +44,7 @@ class ProductResource extends JsonResource
                     'images' => ProductImageResource::collection(
                         $variant->images
                     ),
-                    
+
 
 
                 ];

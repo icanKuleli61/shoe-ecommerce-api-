@@ -18,19 +18,30 @@ class AuthService
 
     public function login(array $data)
     {
-        $user = $this->findUserByEmail($data['email']);
+        $user = $this->findUserByEmail(
+            $data['email']
+        );
 
-        $this->checkPassword($data['password'], $user->password);
+        $this->checkPassword(
+            $data['password'],
+            $user->password
+        );
 
+        if (!$user->is_active) {
+
+            throw new BaseException(
+                ErrorCode::ACCOUNT_DISABLED
+            );
+        }
         return [
 
             'token' =>
+
                 $this->generateToken($user),
 
             'user' => $user
         ];
     }
-
     public function register(array $data)
     {
         return DB::transaction(function () use ($data) {

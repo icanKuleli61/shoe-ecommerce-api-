@@ -356,9 +356,20 @@ class ProductService
     {
         if (!empty($filters['category_id'])) {
 
-            $query->where(
-                'category_id',
+            $categories = explode(
+                ',',
                 $filters['category_id']
+            );
+
+            $query->whereHas(
+                'category',
+                function ($q) use ($categories) {
+
+                    $q->whereIn(
+                        'name',
+                        $categories
+                    );
+                }
             );
         }
     }
@@ -605,10 +616,7 @@ class ProductService
 
         if (!empty($filters['search'])) {
 
-            $search =
-                $filters['search'];
-
-
+            $search = $filters['search'];
 
             $query->where(
 
@@ -643,6 +651,25 @@ class ProductService
                 'category_id',
                 $filters['category_id']
             );
+        }
+
+
+
+        if (!empty($filters['status'])) {
+
+
+            if ($filters['status'] === 'active') {
+
+                $query->whereNull(
+                    'deleted_at'
+                );
+            }
+
+
+            if ($filters['status'] === 'passive') {
+
+                $query->onlyTrashed();
+            }
         }
 
 
@@ -1190,7 +1217,7 @@ class ProductService
         }
     }
 
-    
+
     public function adminShow($id)
     {
         $product = Product::with([

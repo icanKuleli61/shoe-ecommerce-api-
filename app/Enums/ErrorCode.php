@@ -9,8 +9,7 @@ enum ErrorCode: string
     case INVALID_CREDENTIALS = 'INVALID_CREDENTIALS';
     case ACCOUNT_DISABLED = 'ACCOUNT_DISABLED';
     case FORBIDDEN = 'FORBIDDEN';
-
-    // VALIDATION
+    case ADMIN_STATUS_CHANGE_FORBIDDEN = 'ADMIN_STATUS_CHANGE_FORBIDDEN';
     case VALIDATION_ERROR = 'VALIDATION_ERROR';
     case INVALID_ROUTE_PARAM = 'INVALID_ROUTE_PARAM';
     case NO_CHANGES_DETECTED = 'NO_CHANGES_DETECTED';
@@ -74,6 +73,10 @@ enum ErrorCode: string
 
             self::FORBIDDEN =>
             'Bu ürünü satın almadan yorum yapamazsınız.',
+
+            self::ADMIN_STATUS_CHANGE_FORBIDDEN =>
+
+            'Admin hesabının durumu değiştirilemez.',
 
                 // VALIDATION
             self::VALIDATION_ERROR =>
@@ -167,8 +170,8 @@ enum ErrorCode: string
             self::INVALID_CREDENTIALS => 401,
             self::ACCOUNT_DISABLED => 403,
             self::FORBIDDEN => 403,
-            
 
+            self::ADMIN_STATUS_CHANGE_FORBIDDEN => 403,
                 // VALIDATION
             self::VALIDATION_ERROR => 422,
             self::INVALID_ROUTE_PARAM => 400,

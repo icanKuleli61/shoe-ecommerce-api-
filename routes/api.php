@@ -22,7 +22,7 @@ use App\Http\Controllers\ColorController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\HomeController;
-
+use App\Http\Controllers\AdminUserController;
 
 
 /*
@@ -379,15 +379,34 @@ Route::middleware('auth:api')->group(function () {
 |--------------------------------------------------------------------------
 | ADMIN ROUTES
 |--------------------------------------------------------------------------
-|
-| Şimdilik auth var.
-| Sonra admin middleware ekleyeceğiz.
-|
 */
 
 Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
 
+
     /*
+        |--------------------------------------------------------------------------
+        | AdminStatusUser
+        |--------------------------------------------------------------------------
+
+    */
+
+    Route::get(
+
+        '/users',
+
+        [AdminUserController::class, 'index']
+    );
+
+    Route::patch(
+
+        '/users/{id}/toggle-status',
+
+        [AdminUserController::class, 'toggleStatus']
+    );
+
+    /*  
+
     |--------------------------------------------------------------------------
     | PRODUCTS
     |--------------------------------------------------------------------------
