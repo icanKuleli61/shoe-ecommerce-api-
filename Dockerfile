@@ -15,6 +15,11 @@ COPY . .
 
 RUN composer install
 
+RUN php artisan storage:link || true
+
+RUN php artisan config:clear || true
+RUN php artisan cache:clear || true
+
 EXPOSE 8000
 
 CMD php artisan serve --host=0.0.0.0 --port=8000
