@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\AddressController;
@@ -595,4 +595,14 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
         [AdminDashboardController::class, 'index']
     );
 
+
+    Route::get('/run-migrate', function () {
+
+        Artisan::call('migrate', ['--force' => true]);
+
+        return response()->json([
+            'message' => 'Migration çalıştı'
+        ]);
+
+    });
 });
