@@ -44,51 +44,30 @@ class AuthService
     }
     public function register(array $data)
     {
-        return DB::transaction(function () use ($data) {
-
-            dd("1");
+        try {
 
             $user = $this->createUser($data);
 
-            dd("2");
-            Address::create([
+            return [
 
-                'user_id' => $user->id,
+                'step' => 'user_created',
 
-                'full_name' =>
+                'user' => $user
 
-                    !empty($data['full_name'])
+            ];
 
-                    ? $data['full_name']
+        } catch (\Exception $e) {
 
-                    : $user->first_name . ' ' . $user->last_name,
+            return [
 
-                'phone' =>
+                'error' => $e->getMessage(),
 
-                    !empty($data['phone_override'])
+                'line' => $e->getLine(),
 
-                    ? $data['phone_override']
+                'file' => $e->getFile()
 
-                    : $user->phone,
-
-                'city_id' => $data['city_id'],
-
-                'district_id' => $data['district_id'],
-
-                'neighborhood_id' => $data['neighborhood_id'],
-
-                'address' => $data['address'],
-
-                'title' => $data['title'],
-
-                'is_default' => true
-            ]);
-
-
-            dd("address create geldi");
-            return $this->generateToken($user);
-
-        });
+            ];
+        }
     }
 
     private function findUserByEmail($email)

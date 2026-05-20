@@ -33,13 +33,17 @@ class AuthController extends Controller
             'user' => $data['user']
         ]);
     }
-
+    
     public function register(RegisterRequest $request)
     {
+        $token = $this->service->register(
+            $request->validated()
+        );
+
         return response()->json([
-
-            'validated' => $request->validated()
-
+            'success' => true,
+            'message' => 'Kayıt başarıyla oluşturuldu.',
+            'token' => $token
         ]);
     }
 
