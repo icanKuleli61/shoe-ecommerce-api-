@@ -118,6 +118,9 @@ class AuthService
 
     private function createUser(array $data)
     {
+
+        dd($data);
+
         return User::create([
 
             'first_name' => $data['first_name'],
