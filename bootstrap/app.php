@@ -21,6 +21,7 @@ return Application::configure(
 
     ->withMiddleware(function (Middleware $middleware): void {
 
+
         $middleware->append(
             \Illuminate\Http\Middleware\HandleCors::class
         );
@@ -36,7 +37,7 @@ return Application::configure(
     ->withExceptions(function (Exceptions $exceptions): void {
 
         //
-    
+
     })
 
     ->create();
