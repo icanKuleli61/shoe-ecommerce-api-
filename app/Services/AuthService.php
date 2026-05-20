@@ -48,8 +48,7 @@ class AuthService
 
             $user = $this->createUser($data);
 
-            \Log::info($data);
-
+            dd($data);
             Address::create([
 
                 'user_id' => $user->id,
@@ -84,7 +83,7 @@ class AuthService
             ]);
 
 
-
+            dd("address create geldi");
             return $this->generateToken($user);
 
         });
