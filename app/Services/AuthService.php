@@ -48,7 +48,7 @@ class AuthService
 
             $user = $this->createUser($data);
 
-
+            dd($data);
 
             Address::create([
 
