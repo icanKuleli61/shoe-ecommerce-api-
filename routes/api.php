@@ -1,5 +1,5 @@
 <?php
-
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocationController;
@@ -32,11 +32,22 @@ use App\Http\Controllers\AdminUserController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/register', [AuthController::class, 'register']);
+//Route::post('/register', [AuthController::class, 'register']);
 
 
 
 
+
+Route::post('/register', function (Request $request) {
+
+    return response()->json([
+
+        'geldi' => true,
+
+        'data' => $request->all()
+
+    ]);
+});
 /*
 |--------------------------------------------------------------------------
 | PUBLIC PRODUCT ROUTES
