@@ -48,12 +48,41 @@ class AuthService
 
             $user = $this->createUser($data);
 
+            Address::create([
+
+                'user_id' => $user->id,
+
+                'full_name' =>
+
+                    !empty($data['full_name'])
+
+                    ? $data['full_name']
+
+                    : $user->first_name . ' ' . $user->last_name,
+
+                'phone' =>
+
+                    !empty($data['phone_override'])
+
+                    ? $data['phone_override']
+
+                    : $user->phone,
+
+                'city_id' => $data['city_id'],
+
+                'district_id' => $data['district_id'],
+
+                'neighborhood_id' => $data['neighborhood_id'],
+
+                'address' => $data['address'],
+
+                'title' => $data['title'],
+
+                'is_default' => true
+            ]);
+
             return [
-
-                'step' => 'user_created',
-
-                'user' => $user
-
+                'success' => true
             ];
 
         } catch (\Exception $e) {
@@ -65,11 +94,9 @@ class AuthService
                 'line' => $e->getLine(),
 
                 'file' => $e->getFile()
-
             ];
         }
     }
-
     private function findUserByEmail($email)
     {
         $user = User::where('email', $email)->first();
