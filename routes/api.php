@@ -36,6 +36,15 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 
+Route::get('/run-migrate', function () {
+
+    Artisan::call('migrate', ['--force' => true]);
+
+    return response()->json([
+        'message' => 'Migration çalıştı'
+    ]);
+
+});
 
 
 
@@ -596,13 +605,4 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
     );
 
 
-    Route::get('/run-migrate', function () {
-
-        Artisan::call('migrate', ['--force' => true]);
-
-        return response()->json([
-            'message' => 'Migration çalıştı'
-        ]);
-
-    });
 });
