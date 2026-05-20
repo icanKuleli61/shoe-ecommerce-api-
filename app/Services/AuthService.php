@@ -44,7 +44,7 @@ class AuthService
     }
     public function register(array $data)
     {
-        try {
+        return DB::transaction(function () use ($data) {
 
             $user = $this->createUser($data);
 
@@ -81,21 +81,8 @@ class AuthService
                 'is_default' => true
             ]);
 
-            return [
-                'success' => true
-            ];
-
-        } catch (\Exception $e) {
-
-            return [
-
-                'error' => $e->getMessage(),
-
-                'line' => $e->getLine(),
-
-                'file' => $e->getFile()
-            ];
-        }
+            return $this->generateToken($user);
+        });
     }
     private function findUserByEmail($email)
     {
@@ -130,7 +117,6 @@ class AuthService
     private function createUser(array $data)
     {
 
-        \Log::info($data);
 
         return User::create([
 
