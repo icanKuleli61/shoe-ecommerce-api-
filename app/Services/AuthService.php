@@ -48,23 +48,27 @@ class AuthService
 
             $user = $this->createUser($data);
 
-            dd($data);
+            \Log::info($data);
 
             Address::create([
 
                 'user_id' => $user->id,
+
                 'full_name' =>
 
-                    trim(
+                    !empty($data['full_name'])
 
-                        $data['first_name'] . ' ' .
+                    ? $data['full_name']
 
-                        $data['last_name']
-                    ),
+                    : $user->first_name . ' ' . $user->last_name,
 
                 'phone' =>
 
-                    $data['phone'],
+                    !empty($data['phone_override'])
+
+                    ? $data['phone_override']
+
+                    : $user->phone,
 
                 'city_id' => $data['city_id'],
 
@@ -119,7 +123,7 @@ class AuthService
     private function createUser(array $data)
     {
 
-        dd($data);
+        \Log::info($data);
 
         return User::create([
 
