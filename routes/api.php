@@ -1,7 +1,7 @@
 <?php
+use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\AddressController;
@@ -35,16 +35,18 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/register', [AuthController::class, 'register']);
 
-
-Route::get('/run-migrate', function () {
-
-    Artisan::call('migrate', ['--force' => true]);
+Route::post('/test-register', function (Request $request) {
 
     return response()->json([
-        'message' => 'Migration çalıştı'
+
+        'success' => true,
+
+        'data' => $request->all()
+
     ]);
 
 });
+
 
 
 
