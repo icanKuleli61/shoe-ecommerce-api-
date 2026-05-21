@@ -44,9 +44,9 @@ class AuthService
     }
     public function register(array $data)
     {
-        DB::beginTransaction();
-
         try {
+
+            DB::beginTransaction();
 
             $user = $this->createUser($data);
 
@@ -79,14 +79,17 @@ class AuthService
 
             return $this->generateToken($user);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             DB::rollBack();
 
-            throw $e;
+            dd(
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            );
         }
     }
-
     private function findUserByEmail($email)
     {
         $user = User::where('email', $email)->first();
