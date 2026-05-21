@@ -222,18 +222,11 @@ class BannerService
         $image
     ): string {
 
-        $path = $image->store(
+        return $image->store(
             'banners',
             'public'
         );
-
-        dd([
-            'path' => $path,
-            'exists' => Storage::disk('public')->exists($path),
-            'full_path' => Storage::disk('public')->path($path),
-        ]);
     }
-
 
     private function replaceImage(
         Banner $banner,
