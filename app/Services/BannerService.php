@@ -222,6 +222,10 @@ class BannerService
         $image
     ): string {
 
+        dd(
+            Storage::disk('public')->path('banners')
+        );
+
         return $image->store(
             'banners',
             'public'
