@@ -19,18 +19,22 @@ class OrderService
      */
     public function createFromCart(array $data): Order
     {
-        $cartItems = $this->getUserCart();
-        $address = $this->getUserAddress($data['address_id']);
+        // Bütün akışı tek bir transaction içine alıyoruz ki Neon bağlantıyı yarıda kesmesin.
+        return DB::transaction(function () use ($data) {
+            
+            // 1. Verileri Tek Seferde Çek (JOIN kullanarak veritabanı trafiğini sıfırladık)
+            $cartItems = $this->getUserCart();
+            $address = $this->getUserAddress($data['address_id']);
 
-        $subtotal = $this->calculateSubtotal($cartItems);
-        $shippingPrice = $this->calculateShipping($subtotal);
-        $totalPrice = $subtotal + $shippingPrice;
+            // 2. Hesaplamalar ve Doğrulamalar (RAM üzerinde çalışır)
+            $subtotal = $this->calculateSubtotal($cartItems);
+            $shippingPrice = $this->calculateShipping($subtotal);
+            $totalPrice = $subtotal + $shippingPrice;
 
-        $this->validateStock($cartItems);
-        $this->validatePaymentMethod($data['payment_method']);
+            $this->validateStock($cartItems);
+            $this->validatePaymentMethod($data['payment_method']);
 
-        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
-
+            // 3. Siparişi Oluştur
             $order = $this->createOrder(
                 data: $data,
                 address: $address,
@@ -39,22 +43,24 @@ class OrderService
                 totalPrice: $totalPrice
             );
 
+            // 4. Sipariş Maddelerini Toplu Ekle
             $this->createOrderItems(
                 order: $order,
                 cartItems: $cartItems
             );
 
+            // 5. Ödeme ve Stok Yönetimi
             $this->processPayment($order);
-
             $this->decreaseStocks($cartItems);
-
             $this->clearCart();
 
             return $order->load('items');
         });
     }
+
     /**
-     * Kullanıcının aktif sepetini ilişkileriyle getirir
+     * 🛠️ OPTİMİZE EDİLDİ: Tüm ilişkileri tek bir SELECT sorgusunda JOIN ile birleştirdik. 
+     * Neon havuzunu kilitleyen çoklu sorgu (Lazy/Eager load) problemi kökten çözüldü.
      */
     protected function getUserCart()
     {
@@ -64,13 +70,19 @@ class OrderService
             throw new BaseException(ErrorCode::UNAUTHORIZED);
         }
 
-        // Burada 'size' ilişkisini önden yüklediğimiz için alt metotlarda veritabanına tekrar gitmiyoruz
-        $cartItems = CartItem::with([
-            'variant.product',
-            'variant.color',
-            'size'
-        ])
-            ->where('user_id', $userId)
+        // with() yerine join kullanarak 4 farklı sorgu yerine TEK bir sorgu atıyoruz
+        $cartItems = CartItem::select(
+                'cart_items.*',
+                'products.name as product_name',
+                'colors.name as color_name',
+                'variant_sizes.size as size_value',
+                'variant_sizes.stock as current_stock'
+            )
+            ->join('product_variants', 'cart_items.variant_id', '=', 'product_variants.id')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->leftJoin('colors', 'product_variants.color_id', '=', 'colors.id')
+            ->join('variant_sizes', 'cart_items.size_id', '=', 'variant_sizes.id')
+            ->where('cart_items.user_id', $userId)
             ->get();
 
         if ($cartItems->isEmpty()) {
@@ -117,19 +129,12 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Stok durumunu döngü içi SELECT sorgusu atmadan RAM'den kontrol eder
+     * 🛠️ OPTİMİZE EDİLDİ: RAM'e join ile çekilen hazır stok verisini kontrol eder
      */
     protected function validateStock($cartItems): void
     {
         foreach ($cartItems as $item) {
-            // VariantSize::find($item->size_id) yerine eager load ile gelen nesneyi bellekten okuyoruz
-            $size = $item->size;
-
-            if (!$size) {
-                throw new BaseException(ErrorCode::NOT_FOUND);
-            }
-
-            if ($size->stock < $item->quantity) {
+            if ($item->current_stock < $item->quantity) {
                 throw new BaseException(ErrorCode::INSUFFICIENT_STOCK);
             }
         }
@@ -171,29 +176,29 @@ class OrderService
             'status' => Order::STATUS_PENDING,
             'full_name' => $address->full_name,
             'phone' => $address->phone,
-            'city' => $address->city->name,
-            'district' => $address->district->name,
-            'neighborhood' => $address->neighborhood->name,
+            'city' => $address->city?->name ?? '',
+            'district' => $address->district?->name ?? '',
+            'neighborhood' => $address->neighborhood?->name ?? '',
             'address_text' => $address->address,
         ]);
     }
 
     /**
-     * Sipariş maddelerini (items) oluşturur
+     * 🛠️ OPTİMİZE EDİLDİ: Join ile gelen hazır verileri kullanarak bulk insert yapar
      */
     protected function createOrderItems(Order $order, $cartItems): void
     {
         $itemsData = [];
-        $now = now(); // Timestamp alanları için
+        $now = now();
 
         foreach ($cartItems as $item) {
             $itemsData[] = [
                 'order_id' => $order->id,
                 'variant_id' => $item->variant_id,
                 'size_id' => $item->size_id,
-                'product_name' => $item->variant?->product?->name ?? 'Ürün',
-                'variant_name' => $item->variant?->color?->name,
-                'size_value' => $item->size?->size,
+                'product_name' => $item->product_name ?? 'Ürün',
+                'variant_name' => $item->color_name,
+                'size_value' => $item->size_value,
                 'quantity' => $item->quantity,
                 'price' => $item->price,
                 'created_at' => $now,
@@ -201,9 +206,9 @@ class OrderService
             ];
         }
 
-        // Döngü bittikten sonra TEK BİR SORGUYLA veritabanına toplu çakıyoruz!
         OrderItem::insert($itemsData);
     }
+
     /**
      * Ödeme tipine göre iş akışını yönlendirir
      */
@@ -218,7 +223,7 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Cüzdan ödemesini işler. fresh() kullanımı kaldırılarak havuz kilitlenmesi önlendi.
+     * Cüzdan ödemesini işler
      */
     protected function processWalletPayment(Order $order): void
     {
@@ -232,17 +237,14 @@ class OrderService
             throw new BaseException(ErrorCode::INSUFFICIENT_BALANCE);
         }
 
-        // Açık transaction varken veritabanına fresh() ile tekrar SELECT atmamak için 
-        // yeni bakiyeyi PHP tarafında güvenle hesaplıyoruz.
         $newBalance = $wallet->balance - $order->total_price;
-
         $wallet->decrement('balance', $order->total_price);
 
         WalletTransaction::create([
             'wallet_id' => $wallet->id,
             'type' => 'payment',
             'amount' => -$order->total_price,
-            'current_balance' => $newBalance, // fresh() yerine hesaplanan bakiye basıldı
+            'current_balance' => $newBalance,
             'description' => 'Sipariş ödemesi yapıldı.',
             'reference_type' => 'order',
             'reference_id' => $order->id
@@ -261,13 +263,12 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Stok düşme işleminde döngü içi find() select'i engellendi
+     * 🛠️ OPTİMİZE EDİLDİ: Stok düşme işlemini doğrudan ID üzerinden update eder
      */
     protected function decreaseStocks($cartItems): void
     {
         foreach ($cartItems as $item) {
-            // VariantSize::find() atmak yerine sepet modeli üzerinden doğrudan UPDATE (decrement) tetikliyoruz
-            $item->size()?->decrement('stock', $item->quantity);
+            VariantSize::where('id', $item->size_id)->decrement('stock', $item->quantity);
         }
     }
 
@@ -335,18 +336,17 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: İptal durumunda stokları iade ederken döngü içi find() sorgusu minimize edildi
+     * Stokları iade eder
      */
     protected function restoreStocks(Order $order): void
     {
         foreach ($order->items as $item) {
-            // Doğrudan ilişki veya model üzerinden sql update tetikliyoruz
             VariantSize::where('id', $item->size_id)->increment('stock', $item->quantity);
         }
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: İptal edilen sipariş tutarını cüzdana iade eder, fresh() havuz yükü kaldırıldı
+     * İptal edilen sipariş tutarını cüzdana iade eder
      */
     protected function refundWallet(Order $order): void
     {
@@ -356,16 +356,14 @@ class OrderService
             return;
         }
 
-        // fresh() atmak yerine matematiksel hesabı önden bağladık
         $newBalance = $wallet->balance + $order->total_price;
-
         $wallet->increment('balance', $order->total_price);
 
         WalletTransaction::create([
             'wallet_id' => $wallet->id,
             'type' => 'refund',
             'amount' => $order->total_price,
-            'current_balance' => $newBalance, // fresh() yerine temiz hesap
+            'current_balance' => $newBalance,
             'description' => 'Sipariş iptal edildi. Ücret iadesi yapıldı.',
             'reference_type' => 'order',
             'reference_id' => $order->id
@@ -487,14 +485,12 @@ class OrderService
                 throw new BaseException(ErrorCode::NOT_FOUND);
             }
 
-            // Model içerisindeki durum geçiş matrisini doğrular
             $allowedTransitions = Order::$statusFlow[$order->status];
 
             if (!in_array($status, $allowedTransitions)) {
                 throw new BaseException(ErrorCode::BAD_REQUEST);
             }
 
-            // Eğer durum iptale çekildiyse iptal iş akışlarını çalıştırır
             if ($status === Order::STATUS_CANCELLED) {
                 $this->validateCancelableOrder($order);
                 $this->restoreStocks($order);
