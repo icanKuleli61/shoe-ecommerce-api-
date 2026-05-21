@@ -132,13 +132,17 @@ class OrderService
     ): Address {
 
         $address = Address::with([
+
             'city',
             'district',
             'neighborhood'
+
         ])
-            ->where('user_id', auth()->id())
-            ->where('id', $addressId)
-            ->first();
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->find($addressId);
 
         if (!$address) {
 
@@ -282,13 +286,14 @@ class OrderService
                 $address->phone,
 
             'city' =>
-                $address->city?->name,
+                $address->city->name,
 
             'district' =>
-                $address->district?->name,
+                $address->district->name,
 
             'neighborhood' =>
-                $address->neighborhood?->name,
+                $address->neighborhood->name,
+
             'address_text' =>
                 $address->address,
         ]);
@@ -486,8 +491,8 @@ class OrderService
                 'user_id',
                 auth()->id()
             )
-            ->where('id', $id)
-            ->first();
+            ->find($id);
+
         if (!$order) {
 
             throw new BaseException(
@@ -641,8 +646,7 @@ class OrderService
                     'user_id',
                     auth()->id()
                 )
-                ->where('id', $id)
-                ->first();
+                ->find($id);
 
             if (!$order) {
 
@@ -678,8 +682,8 @@ class OrderService
             'user_id',
             auth()->id()
         )
-            ->where('id', $id)
-            ->first();
+            ->find($id);
+
         if (!$order) {
 
             throw new BaseException(
@@ -771,8 +775,7 @@ class OrderService
             'items.variant.images',
             'user'
 
-        ])->where('id', $id)
-            ->first();
+        ])->find($id);
 
         if (!$order) {
 
@@ -799,8 +802,7 @@ class OrderService
                     'items',
                     'user.wallet'
 
-                ])->where('id', $id)
-                    ->first();
+                ])->find($id);
 
 
 
