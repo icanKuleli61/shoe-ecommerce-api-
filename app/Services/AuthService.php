@@ -44,37 +44,49 @@ class AuthService
     }
     public function register(array $data)
     {
-        $user = $this->createUser($data);
+        DB::beginTransaction();
 
-        Address::create([
+        try {
 
-            'user_id' => $user->id,
+            $user = $this->createUser($data);
 
-            'full_name' => !empty($data['full_name'])
-                ? $data['full_name']
-                : $user->first_name . ' ' . $user->last_name,
+            Address::create([
 
-            'phone' => !empty($data['phone_override'])
-                ? $data['phone_override']
-                : $user->phone,
+                'user_id' => $user->id,
 
-            'city_id' => $data['city_id'],
+                'full_name' => !empty($data['full_name'])
+                    ? $data['full_name']
+                    : $user->first_name . ' ' . $user->last_name,
 
-            'district_id' => $data['district_id'],
+                'phone' => !empty($data['phone_override'])
+                    ? $data['phone_override']
+                    : $user->phone,
 
-            'neighborhood_id' => $data['neighborhood_id'],
+                'city_id' => $data['city_id'],
 
-            'address' => $data['address'],
+                'district_id' => $data['district_id'],
 
-            'title' => $data['title'],
+                'neighborhood_id' => $data['neighborhood_id'],
 
-            'is_default' => true
-        ]);
+                'address' => $data['address'],
 
-        return $this->generateToken($user);
+                'title' => $data['title'],
+
+                'is_default' => true
+            ]);
+
+            DB::commit();
+
+            return $this->generateToken($user);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            throw $e;
+        }
     }
 
-    
     private function findUserByEmail($email)
     {
         $user = User::where('email', $email)->first();
