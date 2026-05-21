@@ -17,20 +17,18 @@ class OrderService
     /**
      * Kullanıcı sepetinden sipariş oluşturma ana akışı
      */
-    public function createFromCart(array $data): Order 
+    public function createFromCart(array $data): Order
     {
-        return DB::transaction(function () use ($data) {
+        // DİKKAT: Render'da asıl hatayı görmek için DB::transaction geçici olarak KALDIRILDI!
+        try {
             $cartItems = $this->getUserCart();
-
             $address = $this->getUserAddress($data['address_id']);
 
             $subtotal = $this->calculateSubtotal($cartItems);
             $shippingPrice = $this->calculateShipping($subtotal);
             $totalPrice = $subtotal + $shippingPrice;
 
-            // 🌟 ARTIK HAVUZ DOSTU: Döngü içinde select atmıyor, RAM'den doğruluyor
             $this->validateStock($cartItems);
-
             $this->validatePaymentMethod($data['payment_method']);
 
             $order = $this->createOrder(
@@ -46,18 +44,23 @@ class OrderService
                 cartItems: $cartItems
             );
 
-            // 🌟 ARTIK HAVUZ DOSTU: fresh() ile transaction'ı kilitlemiyor
             $this->processPayment($order);
 
-            // 🌟 ARTIK HAVUZ DOSTU: Döngü içi find() select'leri kaldırıldı
             $this->decreaseStocks($cartItems);
 
             $this->clearCart();
 
             return $order->load('items');
-        });
-    }
 
+        } catch (\Throwable $e) {
+            // Hata ne olursa olsun (SQL, eksik kolon vb.) direkt Network sekmesine JSON olarak basıyoruz!
+            dd([
+                'GERCEK_HATA_MESAJI' => $e->getMessage(),
+                'DOSYA' => $e->getFile(),
+                'SATIR' => $e->getLine()
+            ]);
+        }
+    }
     /**
      * Kullanıcının aktif sepetini ilişkileriyle getirir
      */
@@ -75,8 +78,8 @@ class OrderService
             'variant.color',
             'size'
         ])
-        ->where('user_id', $userId)
-        ->get();
+            ->where('user_id', $userId)
+            ->get();
 
         if ($cartItems->isEmpty()) {
             throw new BaseException(ErrorCode::EMPTY_CART);
@@ -88,15 +91,15 @@ class OrderService
     /**
      * Kullanıcı adresini doğrular ve getirir
      */
-    protected function getUserAddress(int $addressId): Address 
+    protected function getUserAddress(int $addressId): Address
     {
         $address = Address::with([
             'city',
             'district',
             'neighborhood'
         ])
-        ->where('user_id', auth()->id())
-        ->find($addressId);
+            ->where('user_id', auth()->id())
+            ->find($addressId);
 
         if (!$address) {
             throw new BaseException(ErrorCode::NOT_FOUND);
@@ -108,7 +111,7 @@ class OrderService
     /**
      * Sepet ara toplamını hesaplar
      */
-    protected function calculateSubtotal($cartItems): float 
+    protected function calculateSubtotal($cartItems): float
     {
         return $cartItems->sum(fn($item) => $item->price * $item->quantity);
     }
@@ -116,7 +119,7 @@ class OrderService
     /**
      * Kargo ücretini hesaplar (3000 TL üzeri ücretsiz)
      */
-    protected function calculateShipping(float $subtotal): float 
+    protected function calculateShipping(float $subtotal): float
     {
         return $subtotal >= 3000 ? 0 : 99;
     }
@@ -124,7 +127,7 @@ class OrderService
     /**
      * 🛠️ OPTİMİZE EDİLDİ: Stok durumunu döngü içi SELECT sorgusu atmadan RAM'den kontrol eder
      */
-    protected function validateStock($cartItems): void 
+    protected function validateStock($cartItems): void
     {
         foreach ($cartItems as $item) {
             // VariantSize::find($item->size_id) yerine eager load ile gelen nesneyi bellekten okuyoruz
@@ -143,7 +146,7 @@ class OrderService
     /**
      * Ödeme yöntemini doğrular
      */
-    protected function validatePaymentMethod(string $paymentMethod): void 
+    protected function validatePaymentMethod(string $paymentMethod): void
     {
         $allowedMethods = [
             Order::PAYMENT_METHOD_CARD,
@@ -186,7 +189,7 @@ class OrderService
     /**
      * Sipariş maddelerini (items) oluşturur
      */
-    protected function createOrderItems(Order $order, $cartItems): void 
+    protected function createOrderItems(Order $order, $cartItems): void
     {
         foreach ($cartItems as $item) {
             OrderItem::create([
@@ -205,7 +208,7 @@ class OrderService
     /**
      * Ödeme tipine göre iş akışını yönlendirir
      */
-    protected function processPayment(Order $order): void 
+    protected function processPayment(Order $order): void
     {
         if ($order->payment_method === Order::PAYMENT_METHOD_CARD) {
             $this->markOrderAsPaid($order);
@@ -218,7 +221,7 @@ class OrderService
     /**
      * 🛠️ OPTİMİZE EDİLDİ: Cüzdan ödemesini işler. fresh() kullanımı kaldırılarak havuz kilitlenmesi önlendi.
      */
-    protected function processWalletPayment(Order $order): void 
+    protected function processWalletPayment(Order $order): void
     {
         $wallet = auth()->user()->wallet;
 
@@ -252,7 +255,7 @@ class OrderService
     /**
      * Siparişi ödendi olarak işaretler
      */
-    protected function markOrderAsPaid(Order $order): void 
+    protected function markOrderAsPaid(Order $order): void
     {
         $order->payment_status = Order::PAYMENT_STATUS_PAID;
         $order->save();
@@ -261,7 +264,7 @@ class OrderService
     /**
      * 🛠️ OPTİMİZE EDİLDİ: Stok düşme işleminde döngü içi find() select'i engellendi
      */
-    protected function decreaseStocks($cartItems): void 
+    protected function decreaseStocks($cartItems): void
     {
         foreach ($cartItems as $item) {
             // VariantSize::find() atmak yerine sepet modeli üzerinden doğrudan UPDATE (decrement) tetikliyoruz
@@ -287,8 +290,8 @@ class OrderService
             'address',
             'user'
         ])
-        ->where('user_id', auth()->id())
-        ->find($id);
+            ->where('user_id', auth()->id())
+            ->find($id);
 
         if (!$order) {
             throw new BaseException(ErrorCode::NOT_FOUND);
@@ -305,16 +308,16 @@ class OrderService
         return Order::with([
             'items.variant.images'
         ])
-        ->withCount('items')
-        ->where('user_id', auth()->id())
-        ->latest()
-        ->paginate(10);
+            ->withCount('items')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->paginate(10);
     }
 
     /**
      * Siparişin iptal edilebilir durumda olup olmadığını doğrular
      */
-    protected function validateCancelableOrder(Order $order): void 
+    protected function validateCancelableOrder(Order $order): void
     {
         $cancelableStatuses = [
             Order::STATUS_PENDING,
@@ -335,7 +338,7 @@ class OrderService
     /**
      * 🛠️ OPTİMİZE EDİLDİ: İptal durumunda stokları iade ederken döngü içi find() sorgusu minimize edildi
      */
-    protected function restoreStocks(Order $order): void 
+    protected function restoreStocks(Order $order): void
     {
         foreach ($order->items as $item) {
             // Doğrudan ilişki veya model üzerinden sql update tetikliyoruz
@@ -346,7 +349,7 @@ class OrderService
     /**
      * 🛠️ OPTİMİZE EDİLDİ: İptal edilen sipariş tutarını cüzdana iade eder, fresh() havuz yükü kaldırıldı
      */
-    protected function refundWallet(Order $order): void 
+    protected function refundWallet(Order $order): void
     {
         $wallet = $order->user?->wallet;
 
@@ -373,7 +376,7 @@ class OrderService
     /**
      * Sipariş durumunu İptal Edildi çeker
      */
-    protected function markAsCancelled(Order $order): void 
+    protected function markAsCancelled(Order $order): void
     {
         $order->status = Order::STATUS_CANCELLED;
         $order->save();
@@ -433,16 +436,16 @@ class OrderService
             'items.variant.images',
             'user'
         ])
-        ->withCount('items');
+            ->withCount('items');
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
 
             $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($user) use ($search) {
-                      $user->where('email', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('user', function ($user) use ($search) {
+                        $user->where('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -473,7 +476,7 @@ class OrderService
     /**
      * Admin Paneli: Sipariş durumunu güncelleme ve state-flow yönetimi
      */
-    public function adminUpdateStatus($id, string $status): Order 
+    public function adminUpdateStatus($id, string $status): Order
     {
         return DB::transaction(function () use ($id, $status) {
             $order = Order::with([
