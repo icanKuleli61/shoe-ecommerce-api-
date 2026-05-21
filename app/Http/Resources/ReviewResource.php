@@ -32,26 +32,26 @@ class ReviewResource extends JsonResource
 
     private function formatUserName()
     {
-        if (!$this->user?->name) {
+        if (
+            !$this->user?->first_name &&
+            !$this->user?->last_name
+        ) {
 
             return 'Silinmiş kullanıcı';
         }
 
-        $parts = explode(
-            ' ',
-            trim($this->user->name)
-        );
+        $firstName =
+            $this->user->first_name ?? '';
 
-        if (count($parts) === 1) {
-
-            return $parts[0];
-        }
+        $lastName =
+            $this->user->last_name ?? '';
 
         return
-            $parts[0] . ' ' .
+
+            $firstName . ' ' .
 
             mb_substr(
-                $parts[1],
+                $lastName,
                 0,
                 1
             ) . '.';
