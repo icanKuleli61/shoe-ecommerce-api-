@@ -19,12 +19,9 @@ class OrderService
      */
     public function createFromCart(array $data): Order
     {
-        // 1. ADIM: Neon havuzunu yormamak için tüm OKUMA (SELECT) işlemlerini tekil JOIN'ler ile buraya topluyoruz.
-        // Bu iki metot artık arkada sadece 1'er tane tertemiz SQL sorgusu çalıştırıyor.
         $cartItems = $this->getUserCart();
         $address = $this->getUserAddress($data['address_id']);
 
-        // RAM üzerinde hesaplamalar
         $subtotal = $this->calculateSubtotal($cartItems);
         $shippingPrice = $this->calculateShipping($subtotal);
         $totalPrice = $subtotal + $shippingPrice;
@@ -32,31 +29,21 @@ class OrderService
         $this->validateStock($cartItems);
         $this->validatePaymentMethod($data['payment_method']);
 
-        // 2. ADIM: Sadece milisaniyeler sürecek YAZMA (Insert/Update) işlemleri için transaction açıyoruz.
-        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
-
-            // Siparişi Oluştur
-            $order = $this->createOrder(
-                data: $data,
-                address: $address,
-                subtotal: $subtotal,
-                shippingPrice: $shippingPrice,
-                totalPrice: $totalPrice
-            );
-
-            // Sipariş Maddelerini Toplu Ekle
-            $this->createOrderItems(
-                order: $order,
-                cartItems: $cartItems
-            );
-
-            // Ödeme ve Stok Yönetimi
-            $this->processPayment($order);
-            $this->decreaseStocks($cartItems);
-            $this->clearCart();
-
-            return $order->load('items');
-        });
+        // GÜNCELLEDİK: Hata anında veritabanını serbest bırakması için try-catch ekledik
+        try {
+            return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
+                $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
+                $this->createOrderItems($order, $cartItems);
+                $this->processPayment($order);
+                $this->decreaseStocks($cartItems);
+                $this->clearCart();
+                return $order->load('items');
+            });
+        } catch (\Exception $e) {
+            // Hata loga düşsün ama sistem kitlenmesin
+            \Log::error("Sipariş oluşturma hatası: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
