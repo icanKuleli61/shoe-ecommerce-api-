@@ -18,28 +18,64 @@ class OrderService
 {
     public function createFromCart(array $data): Order
     {
-        // 1. Verileri al
-        $cartItems = $this->getUserCart();
-        $address = $this->getUserAddress($data['address_id']);
+        try {
 
-        $subtotal = $this->calculateSubtotal($cartItems);
-        $shippingPrice = $this->calculateShipping($subtotal);
-        $totalPrice = $subtotal + $shippingPrice;
+            $cartItems = $this->getUserCart();
 
-        $this->validateStock($cartItems);
-        $this->validatePaymentMethod($data['payment_method']);
+            $address = $this->getUserAddress(
+                $data['address_id']
+            );
 
-        $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
+            $subtotal = $this->calculateSubtotal(
+                $cartItems
+            );
 
-        $this->createOrderItems($order, $cartItems);
+            $shippingPrice = $this->calculateShipping(
+                $subtotal
+            );
 
-        $this->processPayment($order);
+            $totalPrice =
+                $subtotal + $shippingPrice;
 
-        $this->decreaseStocks($cartItems);
+            $this->validateStock(
+                $cartItems
+            );
 
-        $this->clearCart();
+            $this->validatePaymentMethod(
+                $data['payment_method']
+            );
 
-        return $order->load('items');
+            $order = $this->createOrder(
+                $data,
+                $address,
+                $subtotal,
+                $shippingPrice,
+                $totalPrice
+            );
+
+            $this->createOrderItems(
+                $order,
+                $cartItems
+            );
+
+            $this->processPayment(
+                $order
+            );
+
+            $this->decreaseStocks(
+                $cartItems
+            );
+
+            $this->clearCart();
+
+            return $order->load('items');
+
+        } catch (\Throwable $e) {
+
+            logger()->error($e);
+
+            throw $e;
+        }
     }
 
     protected function getUserCart()
