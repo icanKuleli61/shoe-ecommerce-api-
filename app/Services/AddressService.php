@@ -51,14 +51,19 @@ class AddressService
 
                 ? $data['full_name']
 
-                : $user->name,
+                : trim(
+
+                    ($user->first_name ?? '') .
+
+                    ' ' .
+
+                    ($user->last_name ?? '')
+                ),
 
             'phone' =>
 
-                !empty($data['phone_override'])
-
-                ? $data['phone_override'] 
-
+                !empty($data['phone'])
+                ? $data['phone']
                 : $user->phone,
 
             'city_id' =>
