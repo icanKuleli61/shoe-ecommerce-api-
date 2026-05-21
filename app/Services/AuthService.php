@@ -44,52 +44,37 @@ class AuthService
     }
     public function register(array $data)
     {
-        try {
+        $user = $this->createUser($data);
 
-            DB::beginTransaction();
+        Address::create([
 
-            $user = $this->createUser($data);
+            'user_id' => $user->id,
 
-            Address::create([
+            'full_name' => !empty($data['full_name'])
+                ? $data['full_name']
+                : $user->first_name . ' ' . $user->last_name,
 
-                'user_id' => $user->id,
+            'phone' => !empty($data['phone_override'])
+                ? $data['phone_override']
+                : $user->phone,
 
-                'full_name' => !empty($data['full_name'])
-                    ? $data['full_name']
-                    : $user->first_name . ' ' . $user->last_name,
+            'city_id' => $data['city_id'],
 
-                'phone' => !empty($data['phone_override'])
-                    ? $data['phone_override']
-                    : $user->phone,
+            'district_id' => $data['district_id'],
 
-                'city_id' => $data['city_id'],
+            'neighborhood_id' => $data['neighborhood_id'],
 
-                'district_id' => $data['district_id'],
+            'address' => $data['address'],
 
-                'neighborhood_id' => $data['neighborhood_id'],
+            'title' => $data['title'],
 
-                'address' => $data['address'],
+            'is_default' => true
+        ]);
 
-                'title' => $data['title'],
-
-                'is_default' => true
-            ]);
-
-            DB::commit();
-
-             return "OK";;
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            dd(
-                $e->getMessage(),
-                $e->getFile(),
-                $e->getLine()
-            );
-        }
+        return $this->generateToken($user);
     }
+
+    
     private function findUserByEmail($email)
     {
         $user = User::where('email', $email)->first();
