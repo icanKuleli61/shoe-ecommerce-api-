@@ -19,22 +19,23 @@ class OrderService
      */
     public function createFromCart(array $data): Order
     {
-        // Bütün akışı tek bir transaction içine alıyoruz ki Neon bağlantıyı yarıda kesmesin.
-        return DB::transaction(function () use ($data) {
-            
-            // 1. Verileri Tek Seferde Çek (JOIN kullanarak veritabanı trafiğini sıfırladık)
-            $cartItems = $this->getUserCart();
-            $address = $this->getUserAddress($data['address_id']);
+        // 1. ADIM: Neon havuzunu yormamak için tüm OKUMA (SELECT) işlemlerini tekil JOIN'ler ile buraya topluyoruz.
+        // Bu iki metot artık arkada sadece 1'er tane tertemiz SQL sorgusu çalıştırıyor.
+        $cartItems = $this->getUserCart();
+        $address = $this->getUserAddress($data['address_id']);
 
-            // 2. Hesaplamalar ve Doğrulamalar (RAM üzerinde çalışır)
-            $subtotal = $this->calculateSubtotal($cartItems);
-            $shippingPrice = $this->calculateShipping($subtotal);
-            $totalPrice = $subtotal + $shippingPrice;
+        // RAM üzerinde hesaplamalar
+        $subtotal = $this->calculateSubtotal($cartItems);
+        $shippingPrice = $this->calculateShipping($subtotal);
+        $totalPrice = $subtotal + $shippingPrice;
 
-            $this->validateStock($cartItems);
-            $this->validatePaymentMethod($data['payment_method']);
+        $this->validateStock($cartItems);
+        $this->validatePaymentMethod($data['payment_method']);
 
-            // 3. Siparişi Oluştur
+        // 2. ADIM: Sadece milisaniyeler sürecek YAZMA (Insert/Update) işlemleri için transaction açıyoruz.
+        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
+
+            // Siparişi Oluştur
             $order = $this->createOrder(
                 data: $data,
                 address: $address,
@@ -43,13 +44,13 @@ class OrderService
                 totalPrice: $totalPrice
             );
 
-            // 4. Sipariş Maddelerini Toplu Ekle
+            // Sipariş Maddelerini Toplu Ekle
             $this->createOrderItems(
                 order: $order,
                 cartItems: $cartItems
             );
 
-            // 5. Ödeme ve Stok Yönetimi
+            // Ödeme ve Stok Yönetimi
             $this->processPayment($order);
             $this->decreaseStocks($cartItems);
             $this->clearCart();
@@ -59,8 +60,7 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Tüm ilişkileri tek bir SELECT sorgusunda JOIN ile birleştirdik. 
-     * Neon havuzunu kilitleyen çoklu sorgu (Lazy/Eager load) problemi kökten çözüldü.
+     * 🛠️ KESİNTİSİZ OPTİMİZE: Sepet ve ürün bilgilerini tek sorguda birleştirir.
      */
     protected function getUserCart()
     {
@@ -70,14 +70,15 @@ class OrderService
             throw new BaseException(ErrorCode::UNAUTHORIZED);
         }
 
-        // with() yerine join kullanarak 4 farklı sorgu yerine TEK bir sorgu atıyoruz
+        // 'product_variants.price as variant_price' ekledik ki hesaplamalar doğru çalışsın.
         $cartItems = CartItem::select(
-                'cart_items.*',
-                'products.name as product_name',
-                'colors.name as color_name',
-                'variant_sizes.size as size_value',
-                'variant_sizes.stock as current_stock'
-            )
+            'cart_items.*',
+            'products.name as product_name',
+            'colors.name as color_name',
+            'variant_sizes.size as size_value',
+            'variant_sizes.stock as current_stock',
+            'product_variants.price as variant_price' // Varyantın güncel fiyatını çektik
+        )
             ->join('product_variants', 'cart_items.variant_id', '=', 'product_variants.id')
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('colors', 'product_variants.color_id', '=', 'colors.id')
@@ -93,17 +94,23 @@ class OrderService
     }
 
     /**
-     * Kullanıcı adresini doğrular ve getirir
+     * 🛠️ OPTİMİZE EDİLDİ: Adres ve konum bilgilerini tek bir SELECT sorgusunda JOIN ile getirir.
      */
     protected function getUserAddress(int $addressId): Address
     {
-        $address = Address::with([
-            'city',
-            'district',
-            'neighborhood'
-        ])
-            ->where('user_id', auth()->id())
-            ->find($addressId);
+        // with() zincirini kırıp tek bir join sorgusuna çevirdik. Havuz kilitlenmesi önlendi.
+        $address = Address::select(
+            'addresses.*',
+            'cities.name as city_name',
+            'districts.name as district_name',
+            'neighborhoods.name as neighborhood_name'
+        )
+            ->leftJoin('cities', 'addresses.city_id', '=', 'cities.id')
+            ->leftJoin('districts', 'addresses.district_id', '=', 'districts.id')
+            ->leftJoin('neighborhoods', 'addresses.neighborhood_id', '=', 'neighborhoods.id')
+            ->where('addresses.user_id', auth()->id())
+            ->where('addresses.id', $addressId)
+            ->first();
 
         if (!$address) {
             throw new BaseException(ErrorCode::NOT_FOUND);
@@ -117,7 +124,8 @@ class OrderService
      */
     protected function calculateSubtotal($cartItems): float
     {
-        return $cartItems->sum(fn($item) => $item->price * $item->quantity);
+        // $item->price yerine join ile çektiğimiz variant_price alanını kullanıyoruz
+        return $cartItems->sum(fn($item) => $item->variant_price * $item->quantity);
     }
 
     /**
@@ -129,7 +137,7 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: RAM'e join ile çekilen hazır stok verisini kontrol eder
+     * Stok durumunu kontrol eder
      */
     protected function validateStock($cartItems): void
     {
@@ -176,15 +184,15 @@ class OrderService
             'status' => Order::STATUS_PENDING,
             'full_name' => $address->full_name,
             'phone' => $address->phone,
-            'city' => $address->city?->name ?? '',
-            'district' => $address->district?->name ?? '',
-            'neighborhood' => $address->neighborhood?->name ?? '',
+            'city' => $address->city_name ?? '',      // Join'den gelen alias kullanıldı
+            'district' => $address->district_name ?? '',  // Join'den gelen alias kullanıldı
+            'neighborhood' => $address->neighborhood_name ?? '', // Join'den gelen alias kullanıldı
             'address_text' => $address->address,
         ]);
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Join ile gelen hazır verileri kullanarak bulk insert yapar
+     * Sipariş maddelerini bulk insert yapar
      */
     protected function createOrderItems(Order $order, $cartItems): void
     {
@@ -200,7 +208,7 @@ class OrderService
                 'variant_name' => $item->color_name,
                 'size_value' => $item->size_value,
                 'quantity' => $item->quantity,
-                'price' => $item->price,
+                'price' => $item->variant_price, // Join ile çektiğimiz fiyat basılıyor
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -263,7 +271,7 @@ class OrderService
     }
 
     /**
-     * 🛠️ OPTİMİZE EDİLDİ: Stok düşme işlemini doğrudan ID üzerinden update eder
+     * Stok düşme işlemini doğrudan ID üzerinden update eder
      */
     protected function decreaseStocks($cartItems): void
     {
