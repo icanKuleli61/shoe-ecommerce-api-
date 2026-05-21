@@ -19,17 +19,17 @@ class OrderService
      */
     public function createFromCart(array $data): Order
     {
-        // DİKKAT: Render'da asıl hatayı görmek için DB::transaction geçici olarak KALDIRILDI!
-        try {
-            $cartItems = $this->getUserCart();
-            $address = $this->getUserAddress($data['address_id']);
+        $cartItems = $this->getUserCart();
+        $address = $this->getUserAddress($data['address_id']);
 
-            $subtotal = $this->calculateSubtotal($cartItems);
-            $shippingPrice = $this->calculateShipping($subtotal);
-            $totalPrice = $subtotal + $shippingPrice;
+        $subtotal = $this->calculateSubtotal($cartItems);
+        $shippingPrice = $this->calculateShipping($subtotal);
+        $totalPrice = $subtotal + $shippingPrice;
 
-            $this->validateStock($cartItems);
-            $this->validatePaymentMethod($data['payment_method']);
+        $this->validateStock($cartItems);
+        $this->validatePaymentMethod($data['payment_method']);
+
+        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
 
             $order = $this->createOrder(
                 data: $data,
@@ -51,15 +51,7 @@ class OrderService
             $this->clearCart();
 
             return $order->load('items');
-
-        } catch (\Throwable $e) {
-            // Hata ne olursa olsun (SQL, eksik kolon vb.) direkt Network sekmesine JSON olarak basıyoruz!
-            dd([
-                'GERCEK_HATA_MESAJI' => $e->getMessage(),
-                'DOSYA' => $e->getFile(),
-                'SATIR' => $e->getLine()
-            ]);
-        }
+        });
     }
     /**
      * Kullanıcının aktif sepetini ilişkileriyle getirir
