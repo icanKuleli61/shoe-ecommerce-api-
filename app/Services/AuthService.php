@@ -9,12 +9,20 @@ use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Enums\ErrorCode;
 use Illuminate\Support\Facades\DB;
-
+use App\Services\AddressService;
 use App\Models\Address;
 
 class AuthService
 {
 
+
+    protected AddressService $addressService;
+
+
+    public function __construct(AddressService $addressService)
+    {
+        $this->addressService = $addressService;
+    }
 
     public function login(array $data)
     {
@@ -47,23 +55,11 @@ class AuthService
         return DB::transaction(function () use ($data) {
 
             $user = $this->createUser($data);
-            dd($data);
-            Address::create([
 
-                'user_id' => $user->id,
-
-                'city_id' => 41,
-
-                'district_id' => 614,
-
-                'neighborhood_id' => 11829,
-
-                'address' => 'test address uzunssdsd',
-
-                'title' => 'Ev',
-
-                'is_default' => true
-            ]);
+            $this->addressService->store(
+                $user->id,
+                $data
+            );
 
             return $this->generateToken($user);
         });
