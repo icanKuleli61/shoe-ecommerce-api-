@@ -77,7 +77,7 @@ class AuthService
 
             DB::commit();
 
-            return $this->generateToken($user);
+             return "OK";;
 
         } catch (\Throwable $e) {
 
