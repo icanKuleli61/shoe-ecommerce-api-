@@ -31,23 +31,53 @@ class OrderService
         $this->validatePaymentMethod($data['payment_method']);
 
         // İŞTE BURASI: Transaction'ı daha güvenli hale getiriyoruz
-        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
+        DB::beginTransaction();
 
-            // 1. Sipariş ana kaydı
-            $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
+        try {
 
-            // 2. Sipariş kalemleri
+            dump('START');
+
+            $order = $this->createOrder(
+                $data,
+                $address,
+                $subtotal,
+                $shippingPrice,
+                $totalPrice
+            );
+
+            dump('ORDER CREATED');
+
             $this->createOrderItems($order, $cartItems);
 
-            // 3. Ödeme ve stok
+            dump('ITEMS CREATED');
+
             $this->processPayment($order);
+
+            dump('PAYMENT DONE');
+
             $this->decreaseStocks($cartItems);
 
-            // 4. Sepeti temizle
+            dump('STOCK DECREASED');
+
             $this->clearCart();
 
+            dump('CART CLEARED');
+
+            DB::commit();
+
             return $order->load('items');
-        });
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            dd([
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+        }
     }
 
     /**
