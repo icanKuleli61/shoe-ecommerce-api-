@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Address;
 use App\Exceptions\BaseException;
 use App\Enums\ErrorCode;
-use App\Models\User;
+
 class AddressService
 {
     public function store($user_id, $data)
@@ -38,7 +38,7 @@ class AddressService
                     ]);
         }
 
-        $user = User::find($user_id);
+        $user = auth()->user();
 
         return Address::create([
 

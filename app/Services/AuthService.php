@@ -9,20 +9,12 @@ use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Enums\ErrorCode;
 use Illuminate\Support\Facades\DB;
-use App\Services\AddressService;
 use App\Models\Address;
 
 class AuthService
 {
 
 
-    protected AddressService $addressService;
-
-
-    public function __construct(AddressService $addressService)
-    {
-        $this->addressService = $addressService;
-    }
 
     public function login(array $data)
     {
@@ -52,18 +44,37 @@ class AuthService
     }
     public function register(array $data)
     {
-        return DB::transaction(function () use ($data) {
+        $user = $this->createUser($data);
 
-            $user = $this->createUser($data);
+        Address::create([
 
-            $this->addressService->store(
-                $user->id,
-                $data
-            );
+            'user_id' => $user->id,
 
-            return $this->generateToken($user);
-        });
+            'full_name' => !empty($data['full_name'])
+                ? $data['full_name']
+                : $user->first_name . ' ' . $user->last_name,
+
+            'phone' => !empty($data['phone_override'])
+                ? $data['phone_override']
+                : $user->phone,
+
+            'city_id' => $data['city_id'],
+
+            'district_id' => $data['district_id'],
+
+            'neighborhood_id' => $data['neighborhood_id'],
+
+            'address' => $data['address'],
+
+            'title' => $data['title'],
+
+            'is_default' => true
+        ]);
+
+        return $this->generateToken($user);
     }
+
+    
     private function findUserByEmail($email)
     {
         $user = User::where('email', $email)->first();
