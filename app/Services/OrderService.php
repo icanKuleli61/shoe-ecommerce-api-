@@ -183,8 +183,11 @@ class OrderService
      */
     protected function createOrderItems(Order $order, $cartItems): void
     {
+        $itemsData = [];
+        $now = now(); // Timestamp alanları için
+
         foreach ($cartItems as $item) {
-            OrderItem::create([
+            $itemsData[] = [
                 'order_id' => $order->id,
                 'variant_id' => $item->variant_id,
                 'size_id' => $item->size_id,
@@ -193,10 +196,14 @@ class OrderService
                 'size_value' => $item->size?->size,
                 'quantity' => $item->quantity,
                 'price' => $item->price,
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
-    }
 
+        // Döngü bittikten sonra TEK BİR SORGUYLA veritabanına toplu çakıyoruz!
+        OrderItem::insert($itemsData);
+    }
     /**
      * Ödeme tipine göre iş akışını yönlendirir
      */
