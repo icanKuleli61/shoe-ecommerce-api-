@@ -22,13 +22,38 @@ class ReviewResource extends JsonResource
 
             'comment' => $this->comment,
 
-            'user' =>
-                $this->user?->name
-                ?? 'Silinmiş kullanıcı',
+            'user' => $this->formatUserName(),
 
             'created_at' =>
                 $this->created_at
                     ->format('d.m.Y'),
         ];
+    }
+
+    private function formatUserName()
+    {
+        if (!$this->user?->name) {
+
+            return 'Silinmiş kullanıcı';
+        }
+
+        $parts = explode(
+            ' ',
+            trim($this->user->name)
+        );
+
+        if (count($parts) === 1) {
+
+            return $parts[0];
+        }
+
+        return
+            $parts[0] . ' ' .
+
+            mb_substr(
+                $parts[1],
+                0,
+                1
+            ) . '.';
     }
 }
