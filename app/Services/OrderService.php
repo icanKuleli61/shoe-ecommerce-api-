@@ -200,6 +200,9 @@ class OrderService
     /**
      * Sipariş maddelerini bulk insert yapar
      */
+    /**
+     * Sipariş maddelerini bulk insert yapar
+     */
     protected function createOrderItems(Order $order, $cartItems): void
     {
         $itemsData = [];
@@ -210,19 +213,22 @@ class OrderService
                 'order_id' => $order->id,
                 'variant_id' => $item->variant_id,
                 'size_id' => $item->size_id,
-                'product_name' => $item->product_name ?? 'Ürün',
-                'variant_name' => $item->color_name,
+                // (string) cast atarak ve ternary ile string değerleri garantiye alıyoruz
+                'product_name' => (string) ($item->product_name ?? 'Ürün'),
+                'variant_name' => $item->color_name ? (string) $item->color_name : 'Standart',
                 'size_value' => $item->size_value,
                 'quantity' => $item->quantity,
-                'price' => $item->variant_price, // Join ile çektiğimiz fiyat basılıyor
+                'price' => $item->variant_price,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
         }
 
-        OrderItem::insert($itemsData);
+        // Eğer hala tırnak hatası verirse Eloquent'in korumalı create metoduyla insert atacağız
+        foreach ($itemsData as $data) {
+            OrderItem::create($data);
+        }
     }
-
     /**
      * Ödeme tipine göre iş akışını yönlendirir
      */
