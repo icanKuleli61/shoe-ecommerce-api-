@@ -553,14 +553,17 @@ class OrderService
 
         foreach ($order->items as $item) {
 
-            VariantSize::find(
+            $variant = VariantSize::find(
                 $item->size_id
-            )?->increment(
+            );
 
-                    'stock',
+            if ($variant) {
 
-                    $item->quantity
-                );
+                $variant->stock +=
+                    $item->quantity;
+
+                $variant->save();
+            }
         }
     }
 
@@ -578,12 +581,10 @@ class OrderService
             return;
         }
 
-        $wallet->increment(
+        $wallet->balance +=
+            $order->total_price;
 
-            'balance',
-
-            $order->total_price
-        );
+        $wallet->save();
 
         WalletTransaction::create([
 
@@ -597,7 +598,7 @@ class OrderService
                 $order->total_price,
 
             'current_balance' =>
-                $wallet->fresh()->balance,
+                $wallet->balance,
 
             'description' =>
                 'Sipariş iptal edildi. Ücret iadesi yapıldı.',
@@ -624,40 +625,37 @@ class OrderService
 
     public function cancel($id): Order
     {
-        return DB::transaction(function () use ($id) {
+        $order = Order::with('items')
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->find($id);
 
-            $order = Order::with('items')
-                ->where(
-                    'user_id',
-                    auth()->id()
-                )
-                ->find($id);
+        if (!$order) {
 
-            if (!$order) {
-
-                throw new BaseException(
-                    ErrorCode::NOT_FOUND
-                );
-            }
-
-            $this->validateCancelableOrder(
-                $order
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
             );
+        }
 
-            $this->restoreStocks(
-                $order
-            );
+        $this->validateCancelableOrder(
+            $order
+        );
 
-            $this->refundWallet(
-                $order
-            );
+        $this->restoreStocks(
+            $order
+        );
 
-            $this->markAsCancelled(
-                $order
-            );
+        $this->refundWallet(
+            $order
+        );
 
-            return $order->fresh();
-        });
+        $this->markAsCancelled(
+            $order
+        );
+
+        return $order->fresh();
     }
 
 
