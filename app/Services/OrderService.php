@@ -16,126 +16,31 @@ use App\Enums\ErrorCode;
 
 class OrderService
 {
-    /*
-    |--------------------------------------------------------------------------
-    | SİPARİŞ OLUŞTUR
-    |--------------------------------------------------------------------------
-    */
-
-    public function createFromCart(
-        array $data
-    ): Order {
-
-        /*
-        |--------------------------------------------------------------------------
-        | TRANSACTION DIŞI OKUMA İŞLEMLERİ
-        |--------------------------------------------------------------------------
-        */
-
+    public function createFromCart(array $data): Order
+    {
+        // 1. Verileri al
         $cartItems = $this->getUserCart();
+        $address = $this->getUserAddress($data['address_id']);
 
-        $address = $this->getUserAddress(
-            $data['address_id']
-        );
+        $subtotal = $this->calculateSubtotal($cartItems);
+        $shippingPrice = $this->calculateShipping($subtotal);
+        $totalPrice = $subtotal + $shippingPrice;
 
-        $subtotal = $this->calculateSubtotal(
-            $cartItems
-        );
+        $this->validateStock($cartItems);
+        $this->validatePaymentMethod($data['payment_method']);
 
-        $shippingPrice = $this->calculateShipping(
-            $subtotal
-        );
+        $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
 
-        $totalPrice =
-            $subtotal + $shippingPrice;
+        $this->createOrderItems($order, $cartItems);
 
-        $this->validateStock(
-            $cartItems
-        );
+        $this->processPayment($order);
 
-        $this->validatePaymentMethod(
-            $data['payment_method']
-        );
+        $this->decreaseStocks($cartItems);
 
-        /*
-        |--------------------------------------------------------------------------
-        | SADECE KRİTİK DB YAZMALARI TRANSACTION İÇİNDE
-        |--------------------------------------------------------------------------
-        */
+        $this->clearCart();
 
-        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | ORDER
-            |--------------------------------------------------------------------------
-            */
-
-            $order = $this->createOrder(
-
-                data: $data,
-
-                address: $address,
-
-                subtotal: $subtotal,
-
-                shippingPrice: $shippingPrice,
-
-                totalPrice: $totalPrice
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | ORDER ITEMS
-            |--------------------------------------------------------------------------
-            */
-
-            $this->createOrderItems(
-
-                order: $order,
-
-                cartItems: $cartItems
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAYMENT
-            |--------------------------------------------------------------------------
-            */
-
-            $this->processPayment(
-                $order
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | STOCK
-            |--------------------------------------------------------------------------
-            */
-
-            $this->decreaseStocks(
-                $cartItems
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | CLEAR CART
-            |--------------------------------------------------------------------------
-            */
-
-            $this->clearCart();
-
-            return $order->load(
-                'items'
-            );
-        });
+        return $order->load('items');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | USER CART
-    |--------------------------------------------------------------------------
-    */
 
     protected function getUserCart()
     {
@@ -171,12 +76,6 @@ class OrderService
         return $cartItems;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | USER ADDRESS
-    |--------------------------------------------------------------------------
-    */
-
     protected function getUserAddress(
         int $addressId
     ): Address {
@@ -204,11 +103,6 @@ class OrderService
         return $address;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUBTOTAL
-    |--------------------------------------------------------------------------
-    */
 
     protected function calculateSubtotal(
         $cartItems
@@ -224,11 +118,6 @@ class OrderService
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHIPPING
-    |--------------------------------------------------------------------------
-    */
 
     protected function calculateShipping(
         float $subtotal
@@ -239,11 +128,6 @@ class OrderService
             : 99;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | STOCK VALIDATION
-    |--------------------------------------------------------------------------
-    */
 
     protected function validateStock(
         $cartItems
@@ -265,6 +149,7 @@ class OrderService
             if (
 
                 $size->stock <
+
                 $item->quantity
 
             ) {
@@ -276,11 +161,6 @@ class OrderService
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PAYMENT METHOD VALIDATION
-    |--------------------------------------------------------------------------
-    */
 
     protected function validatePaymentMethod(
         string $paymentMethod
@@ -307,12 +187,6 @@ class OrderService
             );
         }
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE ORDER
-    |--------------------------------------------------------------------------
-    */
 
     protected function createOrder(
 
@@ -374,11 +248,6 @@ class OrderService
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE ORDER ITEMS
-    |--------------------------------------------------------------------------
-    */
 
     protected function createOrderItems(
 
@@ -388,13 +257,9 @@ class OrderService
 
     ): void {
 
-        $items = [];
-
-        $now = now();
-
         foreach ($cartItems as $item) {
 
-            $items[] = [
+            OrderItem::create([
 
                 'order_id' =>
                     $order->id,
@@ -421,33 +286,18 @@ class OrderService
 
                 'size_value' =>
 
-                    (string) (
-                        $item->size
-                                ?->size
-                    ),
+                    $item->size
+                            ?->size,
 
                 'quantity' =>
                     $item->quantity,
 
                 'price' =>
                     $item->price,
-
-                'created_at' =>
-                    $now,
-
-                'updated_at' =>
-                    $now,
-            ];
+            ]);
         }
-
-        OrderItem::insert($items);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PROCESS PAYMENT
-    |--------------------------------------------------------------------------
-    */
 
     protected function processPayment(
         Order $order
@@ -456,6 +306,7 @@ class OrderService
         if (
 
             $order->payment_method ===
+
             Order::PAYMENT_METHOD_CARD
 
         ) {
@@ -467,16 +318,12 @@ class OrderService
             return;
         }
 
+
         $this->processWalletPayment(
             $order
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | WALLET PAYMENT
-    |--------------------------------------------------------------------------
-    */
 
     protected function processWalletPayment(
         Order $order
@@ -496,6 +343,7 @@ class OrderService
         if (
 
             $wallet->balance <
+
             $order->total_price
 
         ) {
@@ -505,18 +353,12 @@ class OrderService
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | WALLET LOCK
-        |--------------------------------------------------------------------------
-        */
+        $wallet->decrement(
 
-        $wallet = $wallet->lockForUpdate()->first();
+            'balance',
 
-        $wallet->balance -=
-            $order->total_price;
-
-        $wallet->save();
+            $order->total_price
+        );
 
         WalletTransaction::create([
 
@@ -530,7 +372,7 @@ class OrderService
                 -$order->total_price,
 
             'current_balance' =>
-                $wallet->balance,
+                $wallet->fresh()->balance,
 
             'description' =>
                 'Sipariş ödemesi yapıldı.',
@@ -547,11 +389,6 @@ class OrderService
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | MARK AS PAID
-    |--------------------------------------------------------------------------
-    */
 
     protected function markOrderAsPaid(
         Order $order
@@ -559,15 +396,9 @@ class OrderService
 
         $order->payment_status =
             Order::PAYMENT_STATUS_PAID;
-
         $order->save();
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DECREASE STOCKS
-    |--------------------------------------------------------------------------
-    */
 
     protected function decreaseStocks(
         $cartItems
@@ -575,58 +406,16 @@ class OrderService
 
         foreach ($cartItems as $item) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | ROW LOCK
-            |--------------------------------------------------------------------------
-            */
+            VariantSize::find(
+                $item->size_id
+            )?->decrement(
 
-            $variantSize = VariantSize::lockForUpdate()
-                ->find($item->size_id);
+                    'stock',
 
-            if (!$variantSize) {
-
-                throw new BaseException(
-                    ErrorCode::NOT_FOUND
+                    $item->quantity
                 );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | STOCK CHECK
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-
-                $variantSize->stock <
-                $item->quantity
-
-            ) {
-
-                throw new BaseException(
-                    ErrorCode::INSUFFICIENT_STOCK
-                );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE STOCK
-            |--------------------------------------------------------------------------
-            */
-
-            $variantSize->stock -=
-                $item->quantity;
-
-            $variantSize->save();
         }
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CLEAR CART
-    |--------------------------------------------------------------------------
-    */
 
     protected function clearCart(): void
     {
@@ -636,5 +425,414 @@ class OrderService
             auth()->id()
 
         )->delete();
+    }
+
+    public function show($id): Order
+    {
+        $order = Order::with([
+
+            'items.variant.images',
+            'address',
+            'user'
+
+        ])
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->find($id);
+
+        if (!$order) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        return $order;
+    }
+    public function index()
+    {
+        return Order::with([
+
+            'items.variant.images'
+
+        ])
+            ->withCount('items')
+            ->where(
+                'user_id',
+                auth()->id()
+            )
+            ->latest()
+            ->paginate(10);
+    }
+
+
+    protected function validateCancelableOrder(
+        Order $order
+    ): void {
+
+        $cancelableStatuses = [
+
+            Order::STATUS_PENDING,
+
+            Order::STATUS_APPROVED,
+
+            Order::STATUS_SUPPLYING,
+
+            Order::STATUS_PACKAGING
+        ];
+
+        if (
+
+            !in_array(
+                $order->status,
+                $cancelableStatuses
+            )
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+
+        if (
+
+            $order->status ===
+            Order::STATUS_CANCELLED
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+    }
+
+
+    protected function restoreStocks(
+        Order $order
+    ): void {
+
+        foreach ($order->items as $item) {
+
+            VariantSize::find(
+                $item->size_id
+            )?->increment(
+
+                    'stock',
+
+                    $item->quantity
+                );
+        }
+    }
+
+
+    protected function refundWallet(
+        Order $order
+    ): void {
+
+        $wallet =
+            $order->user
+                    ?->wallet;
+
+        if (!$wallet) {
+
+            return;
+        }
+
+        $wallet->increment(
+
+            'balance',
+
+            $order->total_price
+        );
+
+        WalletTransaction::create([
+
+            'wallet_id' =>
+                $wallet->id,
+
+            'type' =>
+                'refund',
+
+            'amount' =>
+                $order->total_price,
+
+            'current_balance' =>
+                $wallet->fresh()->balance,
+
+            'description' =>
+                'Sipariş iptal edildi. Ücret iadesi yapıldı.',
+
+            'reference_type' =>
+                'order',
+
+            'reference_id' =>
+                $order->id
+        ]);
+    }
+
+
+    protected function markAsCancelled(
+        Order $order
+    ): void {
+
+        $order->status =
+            Order::STATUS_CANCELLED;
+
+        $order->save();
+    }
+
+
+    public function cancel($id): Order
+    {
+        return DB::transaction(function () use ($id) {
+
+            $order = Order::with('items')
+                ->where(
+                    'user_id',
+                    auth()->id()
+                )
+                ->find($id);
+
+            if (!$order) {
+
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
+
+            $this->validateCancelableOrder(
+                $order
+            );
+
+            $this->restoreStocks(
+                $order
+            );
+
+            $this->refundWallet(
+                $order
+            );
+
+            $this->markAsCancelled(
+                $order
+            );
+
+            return $order->fresh();
+        });
+    }
+
+
+    public function complete($id): Order
+    {
+        $order = Order::where(
+            'user_id',
+            auth()->id()
+        )
+            ->find($id);
+
+        if (!$order) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        if (
+
+            $order->status !==
+            Order::STATUS_DELIVERED
+
+        ) {
+
+            throw new BaseException(
+                ErrorCode::BAD_REQUEST
+            );
+        }
+
+        $order->status =
+            Order::STATUS_COMPLETED;
+
+        $order->save();
+
+        return $order->fresh();
+
+    }
+
+    public function adminIndex(array $filters)
+    {
+        $query = Order::with([
+
+            'items.variant.images',
+            'user'
+
+        ])
+            ->withCount('items');
+
+
+        if (!empty($filters['search'])) {
+
+            $search =
+                $filters['search'];
+
+
+
+            $query->where(function ($q) use ($search) {
+
+
+                $q->where(
+                    'id',
+                    'like',
+                    "%{$search}%"
+                )
+
+                    ->orWhereHas('user', function ($user) use ($search) {
+
+                        $user->where(
+
+                            'email',
+                            'like',
+                            "%{$search}%"
+                        );
+                    });
+            });
+        }
+
+        if (!empty($filters['status'])) {
+
+            $query->where(
+
+                'status',
+
+                $filters['status']
+            );
+        }
+
+        return $query
+            ->latest()
+            ->paginate(20);
+    }
+
+
+
+    public function adminShow($id): Order
+    {
+        $order = Order::with([
+
+            'items.variant.images',
+            'user'
+
+        ])->find($id);
+
+        if (!$order) {
+
+            throw new BaseException(
+                ErrorCode::NOT_FOUND
+            );
+        }
+
+        return $order;
+    }
+
+
+    public function adminUpdateStatus(
+        $id,
+        string $status
+    ): Order {
+
+        return DB::transaction(
+
+            function () use ($id, $status) {
+
+                $order = Order::with([
+
+                    'items',
+                    'user.wallet'
+
+                ])->find($id);
+
+
+
+                if (!$order) {
+
+                    throw new BaseException(
+                        ErrorCode::NOT_FOUND
+                    );
+                }
+
+
+
+                $allowedTransitions =
+
+                    Order::$statusFlow[
+                        $order->status
+                    ];
+
+
+
+                if (
+
+                    !in_array(
+                        $status,
+                        $allowedTransitions
+                    )
+
+                ) {
+
+                    throw new BaseException(
+
+                        ErrorCode::BAD_REQUEST
+                    );
+                }
+
+
+
+                if (
+
+                    $status ===
+                    Order::STATUS_CANCELLED
+
+                ) {
+
+                    $this->validateCancelableOrder(
+                        $order
+                    );
+
+
+
+                    $this->restoreStocks(
+                        $order
+                    );
+
+
+
+                    $this->refundWallet(
+                        $order
+                    );
+
+
+
+                    $this->markAsCancelled(
+                        $order
+                    );
+
+
+
+                    return $order->fresh();
+                }
+
+
+
+                $order->status = $status;
+
+                $order->save();
+
+
+
+                return $order->fresh();
+            }
+        );
     }
 }
