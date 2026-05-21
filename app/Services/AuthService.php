@@ -47,7 +47,7 @@ class AuthService
         return DB::transaction(function () use ($data) {
 
             $user = $this->createUser($data);
-
+            dd($data);
             Address::create([
 
                 'user_id' => $user->id,
