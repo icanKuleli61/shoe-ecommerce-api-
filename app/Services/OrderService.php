@@ -55,8 +55,7 @@ class OrderService
 
             dump('PAYMENT DONE');
 
-            $this->decreaseStocks($cartItems);
-
+            // $this->decreaseStocks($cartItems);
             dump('STOCK DECREASED');
 
             $this->clearCart();
