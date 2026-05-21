@@ -26,10 +26,9 @@ class BannerResource extends JsonResource
 
             'image' =>
 
-                asset(
-                    'storage/' .
-                    $this->image
-                ),
+                'https://shoe-ecommerce-api.onrender.com/storage/' .
+
+                $this->image,
 
             'sort_order' =>
 
