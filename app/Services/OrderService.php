@@ -62,6 +62,9 @@ class OrderService
     /**
      * 🛠️ KESİNTİSİZ OPTİMİZE: Sepet ve ürün bilgilerini tek sorguda birleştirir.
      */
+    /**
+     * 🛠️ KESİNTİSİZ OPTİMİZE: Sepet ve ürün bilgilerini tek sorguda birleştirir.
+     */
     protected function getUserCart()
     {
         $userId = auth()->id();
@@ -70,19 +73,22 @@ class OrderService
             throw new BaseException(ErrorCode::UNAUTHORIZED);
         }
 
-        // 'product_variants.price as variant_price' ekledik ki hesaplamalar doğru çalışsın.
         $cartItems = CartItem::select(
             'cart_items.*',
             'products.name as product_name',
             'colors.name as color_name',
             'variant_sizes.size as size_value',
             'variant_sizes.stock as current_stock',
-            'product_variants.price as variant_price' // Varyantın güncel fiyatını çektik
+            'variant_sizes.price as variant_price' // Fiyatı aslanlar gibi variant_sizes'tan aldık!
         )
             ->join('product_variants', 'cart_items.variant_id', '=', 'product_variants.id')
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('colors', 'product_variants.color_id', '=', 'colors.id')
-            ->join('variant_sizes', 'cart_items.size_id', '=', 'variant_sizes.id')
+            // DOĞRU BAĞLANTI: variant_sizes'ı hem variant_id hem de size_id (numara id'si) üzerinden bağlıyoruz
+            ->join('variant_sizes', function ($join) {
+                $join->on('cart_items.variant_id', '=', 'variant_sizes.variant_id')
+                    ->on('cart_items.size_id', '=', 'variant_sizes.id');
+            })
             ->where('cart_items.user_id', $userId)
             ->get();
 
