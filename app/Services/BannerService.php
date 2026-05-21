@@ -222,14 +222,16 @@ class BannerService
         $image
     ): string {
 
-        dd(
-            Storage::disk('public')->path('banners')
-        );
-
-        return $image->store(
+        $path = $image->store(
             'banners',
             'public'
         );
+
+        dd([
+            'path' => $path,
+            'exists' => Storage::disk('public')->exists($path),
+            'full_path' => Storage::disk('public')->path($path),
+        ]);
     }
 
 
