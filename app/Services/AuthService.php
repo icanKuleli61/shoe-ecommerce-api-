@@ -52,31 +52,15 @@ class AuthService
 
                 'user_id' => $user->id,
 
-                'full_name' =>
+                'city_id' => 41,
 
-                    !empty($data['full_name'])
+                'district_id' => 614,
 
-                    ? $data['full_name']
+                'neighborhood_id' => 11829,
 
-                    : $user->first_name . ' ' . $user->last_name,
+                'address' => 'test address uzunssdsd',
 
-                'phone' =>
-
-                    !empty($data['phone_override'])
-
-                    ? $data['phone_override']
-
-                    : $user->phone,
-
-                'city_id' => $data['city_id'],
-
-                'district_id' => $data['district_id'],
-
-                'neighborhood_id' => $data['neighborhood_id'],
-
-                'address' => $data['address'],
-
-                'title' => $data['title'],
+                'title' => 'Ev',
 
                 'is_default' => true
             ]);
