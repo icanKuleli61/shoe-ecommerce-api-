@@ -19,6 +19,7 @@ class OrderService
      */
     public function createFromCart(array $data): Order
     {
+        // Önce verileri güvenle çek
         $cartItems = $this->getUserCart();
         $address = $this->getUserAddress($data['address_id']);
 
@@ -29,21 +30,24 @@ class OrderService
         $this->validateStock($cartItems);
         $this->validatePaymentMethod($data['payment_method']);
 
-        // GÜNCELLEDİK: Hata anında veritabanını serbest bırakması için try-catch ekledik
-        try {
-            return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
-                $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
-                $this->createOrderItems($order, $cartItems);
-                $this->processPayment($order);
-                $this->decreaseStocks($cartItems);
-                $this->clearCart();
-                return $order->load('items');
-            });
-        } catch (\Exception $e) {
-            // Hata loga düşsün ama sistem kitlenmesin
-            \Log::error("Sipariş oluşturma hatası: " . $e->getMessage());
-            throw $e;
-        }
+        // İŞTE BURASI: Transaction'ı daha güvenli hale getiriyoruz
+        return DB::transaction(function () use ($data, $address, $subtotal, $shippingPrice, $totalPrice, $cartItems) {
+
+            // 1. Sipariş ana kaydı
+            $order = $this->createOrder($data, $address, $subtotal, $shippingPrice, $totalPrice);
+
+            // 2. Sipariş kalemleri
+            $this->createOrderItems($order, $cartItems);
+
+            // 3. Ödeme ve stok
+            $this->processPayment($order);
+            $this->decreaseStocks($cartItems);
+
+            // 4. Sepeti temizle
+            $this->clearCart();
+
+            return $order->load('items');
+        });
     }
 
     /**
