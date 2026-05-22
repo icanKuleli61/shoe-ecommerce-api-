@@ -218,14 +218,27 @@ class BannerService
     }
 
 
-    private function uploadImage(
-        $image
-    ): string {
+    private function uploadImage($image): string
+    {
+        try {
 
-        return $image->store(
-            'banners',
-            'public'
-        );
+            $path = $image->store(
+                'banners',
+                'public'
+            );
+
+            if (!$path) {
+                throw new \Exception('Dosya kaydedilemedi');
+            }
+
+            return $path;
+
+        } catch (\Throwable $e) {
+
+            \Log::error('BANNER UPLOAD ERROR: ' . $e->getMessage());
+
+            throw $e;
+        }
     }
 
     private function replaceImage(
