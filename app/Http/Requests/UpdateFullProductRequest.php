@@ -174,6 +174,48 @@ class UpdateFullProductRequest extends FormRequest
 
                 'min:0'
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | DELETE FIELDS
+            |--------------------------------------------------------------------------
+            */
+
+            'deleted_images' => [
+
+                'nullable',
+
+                'array'
+            ],
+
+            'deleted_images.*' => [
+
+                'integer'
+            ],
+
+            'deleted_sizes' => [
+
+                'nullable',
+
+                'array'
+            ],
+
+            'deleted_sizes.*' => [
+
+                'integer'
+            ],
+
+            'deleted_variants' => [
+
+                'nullable',
+
+                'array'
+            ],
+
+            'deleted_variants.*' => [
+
+                'integer'
+            ],
         ];
     }
 
