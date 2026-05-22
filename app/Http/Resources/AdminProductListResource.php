@@ -35,12 +35,11 @@ class AdminProductListResource extends JsonResource
             'slug' => $this->slug,
 
             'image' => $firstImage
-                ? asset(
-                    'storage/' .
+                ? url(
+                    'api/image/' .
                     $firstImage->image_path
                 )
                 : null,
-
             'category' =>
                 $this->category?->name,
 
@@ -55,8 +54,8 @@ class AdminProductListResource extends JsonResource
 
             'status' =>
                 $this->deleted_at
-                    ? false
-                    : true,
+                ? false
+                : true,
 
             'created_at' =>
                 $this->created_at
