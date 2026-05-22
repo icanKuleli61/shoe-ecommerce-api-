@@ -17,121 +17,133 @@ class ProductService
     {
         try {
 
-            return DB::transaction(function () use ($data) {
+            $product = Product::create([
 
-                $product = Product::create([
+                'name' => $data['name'],
 
-                    'name' => $data['name'],
+                'description' => $data['description'] ?? null,
 
-                    'description' => $data['description'] ?? null,
+                'category_id' => $data['category_id'],
 
-                    'category_id' => $data['category_id'],
+                'brand_id' => $data['brand_id'],
 
-                    'brand_id' => $data['brand_id'],
+                'gender' => $data['gender'],
 
-                    'gender' => $data['gender'],
+                'slug' => Str::slug($data['name']) . '-' . uniqid(),
+            ]);
 
-                    'slug' => Str::slug($data['name']) . '-' . uniqid(),
+
+
+            foreach ($data['variants'] as $variant) {
+
+                $productVariant = ProductVariant::create([
+
+                    'product_id' => $product->id,
+
+                    'name' => $variant['name'],
+
+                    'color_id' => $variant['color_id'],
                 ]);
 
-                foreach ($data['variants'] as $variant) {
 
-                    $productVariant = ProductVariant::create([
 
-                        'product_id' => $product->id,
-                        'name' => $variant['name'],
+                $seenSizes = [];
 
-                        'color_id' => $variant['color_id'],
+
+
+                foreach ($variant['sizes'] as $size) {
+
+                    if (
+
+                        in_array(
+                            $size['size'],
+                            $seenSizes
+                        )
+
+                    ) {
+
+                        throw new \Exception(
+                            'Aynı varyantta aynı numara tekrar edemez'
+                        );
+                    }
+
+
+
+                    $seenSizes[] = $size['size'];
+
+
+
+                    VariantSize::create([
+
+                        'variant_id' =>
+                            $productVariant->id,
+
+                        'size' =>
+                            $size['size'],
+
+                        'stock' =>
+                            $size['stock'],
+
+                        'price' =>
+                            $size['price'],
                     ]);
+                }
 
-                    $seenSizes = [];
 
-                    foreach ($variant['sizes'] as $size) {
 
-                        if (
-                            in_array(
-                                $size['size'],
-                                $seenSizes
-                            )
-                        ) {
+                /*
+                |--------------------------------------------------------------------------
+                | VARYANT GÖRSELLERİ
+                |--------------------------------------------------------------------------
+                */
 
-                            throw new \Exception(
-                                'Aynı varyantta aynı numara tekrar edemez'
-                            );
-                        }
+                if (isset($variant['images'])) {
 
-                        $seenSizes[] = $size['size'];
+                    foreach (
 
-                        VariantSize::create([
+                        $variant['images']
+                        as $index => $image
+
+                    ) {
+
+                        $path = $image->store(
+                            'products',
+                            'public'
+                        );
+
+
+
+                        ProductImage::create([
 
                             'variant_id' =>
                                 $productVariant->id,
 
-                            'size' =>
-                                $size['size'],
+                            'image_path' =>
+                                $path,
 
-                            'stock' =>
-                                $size['stock'],
+                            'is_main' =>
+                                $index === 0,
 
-                            'price' =>
-                                $size['price'],
+                            'order' =>
+                                $index,
                         ]);
                     }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | VARYANT GÖRSELLERİ
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (isset($variant['images'])) {
-
-                        foreach (
-                            $variant['images']
-                            as $index => $image
-                        ) {
-
-                            $path = $image->store(
-                                'products',
-                                'public'
-                            );
-
-                            ProductImage::create([
-
-                                'variant_id' =>
-                                    $productVariant->id,
-
-                                'image_path' =>
-                                    $path,
-
-                                'is_main' =>
-                                    $index === 0,
-
-                                'order' =>
-                                    $index,
-                            ]);
-                        }
-                    }
-
-
-
                 }
+            }
 
-                return $product->load(
-                    'variants.sizes',
-                    'variants.color',
-                    'category',
-                    'brand'
-                );
-            });
 
-        } catch (\Exception $e) {
 
-            throw new \Exception(
-                'Ürün oluşturulurken hata oluştu: '
-                . $e->getMessage()
+            return $product->load(
+
+                'variants.sizes',
+                'variants.color',
+                'category',
+                'brand'
             );
+
+        } catch (\Throwable $e) {
+
+            dd($e->getMessage());
         }
     }
 
@@ -704,44 +716,46 @@ class ProductService
 
 
 
-        return DB::transaction(
+        try {
 
-            function () use ($product, $data) {
-
-                $this->updateProduct(
-                    $product,
-                    $data
-                );
-
-
-                $this->handleDeletes(
-                    $data
-                );
-
-
-                $this->syncVariants(
-                    $product,
-                    $data['variants']
-                );
+            $this->updateProduct(
+                $product,
+                $data
+            );
 
 
 
-                return $product->fresh([
+            $this->handleDeletes(
+                $data
+            );
 
-                    'variants.images',
 
-                    'variants.sizes',
 
-                    'variants.color',
+            $this->syncVariants(
+                $product,
+                $data['variants']
+            );
 
-                    'category',
 
-                    'brand'
-                ]);
-            }
-        );
+
+            return $product->fresh([
+
+                'variants.images',
+
+                'variants.sizes',
+
+                'variants.color',
+
+                'category',
+
+                'brand'
+            ]);
+
+        } catch (\Throwable $e) {
+
+            dd($e->getMessage());
+        }
     }
-
     private function updateProduct(
         Product $product,
         array $data
