@@ -776,97 +776,98 @@ class OrderService
         string $status
     ): Order {
 
-        return DB::transaction(
+        try {
 
-            function () use ($id, $status) {
+            $order = Order::with([
 
-                $order = Order::with([
+                'items',
+                'user.wallet'
 
-                    'items',
-                    'user.wallet'
-
-                ])->find($id);
+            ])->find($id);
 
 
 
-                if (!$order) {
+            if (!$order) {
 
-                    throw new BaseException(
-                        ErrorCode::NOT_FOUND
-                    );
-                }
-
-
-
-                $allowedTransitions =
-
-                    Order::$statusFlow[
-                        $order->status
-                    ];
+                throw new BaseException(
+                    ErrorCode::NOT_FOUND
+                );
+            }
 
 
 
-                if (
+            $allowedTransitions =
 
-                    !in_array(
-                        $status,
-                        $allowedTransitions
-                    )
-
-                ) {
-
-                    throw new BaseException(
-
-                        ErrorCode::BAD_REQUEST
-                    );
-                }
+                Order::$statusFlow[
+                    $order->status
+                ];
 
 
 
-                if (
+            if (
 
-                    $status ===
-                    Order::STATUS_CANCELLED
+                !in_array(
+                    $status,
+                    $allowedTransitions
+                )
 
-                ) {
+            ) {
 
-                    $this->validateCancelableOrder(
-                        $order
-                    );
+                throw new BaseException(
 
-
-
-                    $this->restoreStocks(
-                        $order
-                    );
+                    ErrorCode::BAD_REQUEST
+                );
+            }
 
 
 
-                    $this->refundWallet(
-                        $order
-                    );
+            if (
+
+                $status ===
+                Order::STATUS_CANCELLED
+
+            ) {
+
+                $this->validateCancelableOrder(
+                    $order
+                );
 
 
 
-                    $this->markAsCancelled(
-                        $order
-                    );
+                $this->restoreStocks(
+                    $order
+                );
 
 
 
-                    return $order->fresh();
-                }
+                $this->refundWallet(
+                    $order
+                );
 
 
 
-                $order->status = $status;
-
-                $order->save();
+                $this->markAsCancelled(
+                    $order
+                );
 
 
 
                 return $order->fresh();
             }
-        );
+
+
+
+            $order->status = $status;
+
+            $order->save();
+
+
+
+            return $order->fresh();
+
+        } catch (\Throwable $e) {
+
+            dd($e->getMessage());
+        }
     }
 }
