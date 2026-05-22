@@ -17,7 +17,7 @@ class ProductListResource extends JsonResource
         $image =
 
             $variant?->images
-                ?->first();
+                    ?->first();
 
         $minPrice =
 
@@ -57,12 +57,12 @@ class ProductListResource extends JsonResource
 
                 $image?->image_path
 
-                    ? asset(
-                        'storage/' .
-                        $image->image_path
-                    )
+                ? url(
+                    'api/image/' .
+                    $image->image_path
+                )
 
-                    : null,
+                : null,
 
             'reviews_avg_rating' =>
 
@@ -79,13 +79,13 @@ class ProductListResource extends JsonResource
 
                 auth()->check()
 
-                    ? $this->favorites
-                        ->contains(
-                            'user_id',
-                            auth()->id()
-                        )
+                ? $this->favorites
+                    ->contains(
+                        'user_id',
+                        auth()->id()
+                    )
 
-                    : false,
+                : false,
         ];
     }
 }

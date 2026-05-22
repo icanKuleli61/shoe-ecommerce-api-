@@ -18,8 +18,8 @@ class ProductImageResource extends JsonResource
 
             'id' => $this->id,
 
-            'url' => asset(
-                'storage/' .
+            'url' => url(
+                'api/image/' .
                 $this->image_path
             ),
 

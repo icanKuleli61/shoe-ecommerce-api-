@@ -44,8 +44,8 @@ class ProductDetailResource extends JsonResource
 
                         'id' => $image->id,
 
-                        'url' => asset(
-                            'storage/' .
+                        'url' => url(
+                            'api/image/' .
                             $image->image_path
                         ),
 
