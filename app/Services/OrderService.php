@@ -568,46 +568,31 @@ class OrderService
     }
 
 
-    protected function refundWallet(
-        Order $order
-    ): void {
-
-        $wallet =
-            $order->user
-                    ?->wallet;
-
-        if (!$wallet) {
-
+    protected function refundWallet(Order $order): void
+    {
+        if ($order->payment_method !== Order::PAYMENT_METHOD_WALLET) {
             return;
         }
 
-        $wallet->balance +=
-            $order->total_price;
+        if ($order->payment_status !== Order::PAYMENT_STATUS_PAID) {
+            return;
+        }
 
-        $wallet->save();
+        $wallet = $order->user?->wallet;
+        if (!$wallet) {
+            return;
+        }
+
+        $wallet->increment('balance', $order->total_price);
 
         WalletTransaction::create([
-
-            'wallet_id' =>
-                $wallet->id,
-
-            'type' =>
-                'refund',
-
-            'amount' =>
-                $order->total_price,
-
-            'current_balance' =>
-                $wallet->balance,
-
-            'description' =>
-                'Sipariş iptal edildi. Ücret iadesi yapıldı.',
-
-            'reference_type' =>
-                'order',
-
-            'reference_id' =>
-                $order->id
+            'wallet_id' => $wallet->id,
+            'type' => 'refund',
+            'amount' => $order->total_price,
+            'current_balance' => $wallet->fresh()->balance,
+            'description' => 'Sipariş iptal edildi. Ücret iadesi yapıldı.',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
         ]);
     }
 
@@ -771,103 +756,55 @@ class OrderService
     }
 
 
-    public function adminUpdateStatus(
-        $id,
-        string $status
-    ): Order {
-
-        try {
-
-            $order = Order::with([
-
-                'items',
-                'user.wallet'
-
-            ])->find($id);
-
-
+    public function adminUpdateStatus($id, string $status): Order
+    {
+        return DB::transaction(function () use ($id, $status) {
+            $order = Order::with(['items', 'user.wallet'])
+                ->lockForUpdate()
+                ->find($id);
 
             if (!$order) {
-
-                throw new BaseException(
-                    ErrorCode::NOT_FOUND
-                );
+                throw new BaseException(ErrorCode::NOT_FOUND);
             }
 
-
-
-            $allowedTransitions =
-
-                Order::$statusFlow[
-                    $order->status
-                ];
-
-
-
-            if (
-
-                !in_array(
-                    $status,
-                    $allowedTransitions
-                )
-
-            ) {
-
-                throw new BaseException(
-
-                    ErrorCode::BAD_REQUEST
-                );
+            if ($order->status === Order::STATUS_CANCELLED) {
+                throw new BaseException(ErrorCode::BAD_REQUEST);
             }
 
+            $allowedTransitions = Order::$statusFlow[$order->status] ?? [];
 
-
-            if (
-
-                $status ===
-                Order::STATUS_CANCELLED
-
-            ) {
-
-                $this->validateCancelableOrder(
-                    $order
-                );
-
-
-
-                $this->restoreStocks(
-                    $order
-                );
-
-
-
-                $this->refundWallet(
-                    $order
-                );
-
-
-
-                $this->markAsCancelled(
-                    $order
-                );
-
-
-
-                return $order->fresh();
+            if (!in_array($status, $allowedTransitions, true)) {
+                throw new BaseException(ErrorCode::BAD_REQUEST);
             }
 
+            if ($status === Order::STATUS_CANCELLED) {
+                $this->validateAdminCancelableOrder($order);
+                $this->restoreStocks($order);
+                $this->refundWallet($order);
+                $this->markAsCancelled($order);
 
+                return $order->fresh(['items', 'user']);
+            }
 
             $order->status = $status;
-
             $order->save();
 
+            return $order->fresh(['items', 'user']);
+        });
+    }
+    protected function validateAdminCancelableOrder(Order $order): void
+    {
+        $cancelable = [
+            Order::STATUS_PENDING,
+            Order::STATUS_APPROVED,
+            Order::STATUS_SUPPLYING,
+            Order::STATUS_PACKAGING,
+            Order::STATUS_SHIPPED,           // istemiyorsan çıkar
+            Order::STATUS_OUT_FOR_DELIVERY,  // istemiyorsan çıkar
+        ];
 
-
-            return $order->fresh();
-
-        } catch (\Throwable $e) {
-
-            dd($e->getMessage());
+        if (!in_array($order->status, $cancelable, true)) {
+            throw new BaseException(ErrorCode::BAD_REQUEST);
         }
     }
 }
