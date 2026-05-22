@@ -22,6 +22,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AdminUserController;
+use Illuminate\Support\Facades\Storage;
 
 
 /*
@@ -29,6 +30,20 @@ use App\Http\Controllers\AdminUserController;
 | AUTH
 |--------------------------------------------------------------------------
 */
+
+
+
+Route::get('/image/{path}', function ($path) {
+
+    $filePath = storage_path('app/public/' . $path);
+
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+
+    return response()->file($filePath);
+
+})->where('path', '.*');
 
 Route::post('/login', [AuthController::class, 'login']);
 
