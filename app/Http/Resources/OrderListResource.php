@@ -95,14 +95,19 @@ class OrderListResource extends JsonResource
                     ->take(3)
                     ->map(function ($item) {
 
-                        return optional(
+                        $image = $item
+                            ->variant
+                            ?->images
+                                ?->first();
 
-                            $item
-                                ->variant
-                                ?->images
-                                    ?->first()
+                        return $image
 
-                        )->image_path;
+                            ? url(
+                                'api/image/' .
+                                $image->image_path
+                            )
+
+                            : null;
                     })
                     ->filter()
                     ->values(),

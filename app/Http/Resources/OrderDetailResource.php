@@ -18,11 +18,6 @@ class OrderDetailResource extends JsonResource
                 $this->generateOrderNumber(),
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | STATUS
-            |--------------------------------------------------------------------------
-            */
 
             'status' =>
                 $this->status,
@@ -33,12 +28,6 @@ class OrderDetailResource extends JsonResource
             'status_step' =>
                 $this->getStatusStep(),
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAYMENT
-            |--------------------------------------------------------------------------
-            */
 
             'payment_method' =>
                 $this->payment_method,
@@ -58,12 +47,6 @@ class OrderDetailResource extends JsonResource
                 $this->getPaymentStatusText(),
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | PRICE
-            |--------------------------------------------------------------------------
-            */
-
             'subtotal' =>
                 (float) $this->subtotal,
 
@@ -73,12 +56,6 @@ class OrderDetailResource extends JsonResource
             'total_price' =>
                 (float) $this->total_price,
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | ADDRESS
-            |--------------------------------------------------------------------------
-            */
 
             'address' => [
 
@@ -101,12 +78,6 @@ class OrderDetailResource extends JsonResource
                     $this->address_text,
             ],
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | ITEMS
-            |--------------------------------------------------------------------------
-            */
 
             'items' =>
 
@@ -145,7 +116,6 @@ class OrderDetailResource extends JsonResource
 
                                         $item->quantity
                                     ),
-
                                 'image' =>
 
                                     optional(
@@ -155,18 +125,27 @@ class OrderDetailResource extends JsonResource
                                             ?->images
                                                 ?->first()
 
-                                    )->image_path,
+                                    )->image_path
+
+                                    ? url(
+                                        'api/image/' .
+
+                                        optional(
+
+                                            $item
+                                                ->variant
+                                                ?->images
+                                                    ?->first()
+
+                                        )->image_path
+                                    )
+
+                                    : null,
                             ];
                         }
                     )
                 ),
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | DATE
-            |--------------------------------------------------------------------------
-            */
 
             'created_at' =>
 
