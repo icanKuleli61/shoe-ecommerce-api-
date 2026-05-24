@@ -43,10 +43,12 @@ class FavoriteResource extends JsonResource
             'image' =>
 
                 $image?->image_path
-                ? asset(
-                    'storage/' .
+
+                ? url(
+                    'api/image/' .
                     $image->image_path
                 )
+
                 : null,
 
             'brand' => [
