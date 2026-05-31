@@ -22,6 +22,12 @@ class ProductDetailResource extends JsonResource
 
             'brand_id' => $this->brand_id,
 
+            'is_favorite' => auth()->check()
+                ? $this->favorites()
+                    ->where('user_id', auth()->id())
+                    ->exists()
+                : false,
+
             'category_id' => $this->category_id,
 
             'gender' => $this->gender,
