@@ -373,15 +373,9 @@ class ProductService
                 $filters['category_id']
             );
 
-            $query->whereHas(
-                'category',
-                function ($q) use ($categories) {
-
-                    $q->whereIn(
-                        'name',
-                        $categories
-                    );
-                }
+            $query->whereIn(
+                'category_id',
+                $categories
             );
         }
     }
@@ -390,9 +384,14 @@ class ProductService
     {
         if (!empty($filters['brand_id'])) {
 
-            $query->where(
-                'brand_id',
+            $brands = explode(
+                ',',
                 $filters['brand_id']
+            );
+
+            $query->whereIn(
+                'brand_id',
+                $brands
             );
         }
     }
