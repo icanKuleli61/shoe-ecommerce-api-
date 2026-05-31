@@ -23,7 +23,34 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AdminUserController;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Category;
+use App\Models\Brand;
+use App\Models\VariantSize;
 
+
+
+Route::get('/filters', function () {
+
+    return response()->json([
+
+        'categories' => Category::select(
+            'id',
+            'name'
+        )->get(),
+
+        'brands' => Brand::select(
+            'id',
+            'name'
+        )->get(),
+
+        'sizes' => VariantSize::select(
+            'size'
+        )
+            ->distinct()
+            ->orderBy('size')
+            ->pluck('size')
+    ]);
+});
 
 /*
 |--------------------------------------------------------------------------
